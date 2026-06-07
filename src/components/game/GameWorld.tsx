@@ -260,10 +260,10 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
       ctx.fillStyle = vg;
       ctx.fillRect(0, 0, W, H);
 
-      if (time === "evening") {
+      if (timeRef.current === "evening") {
         ctx.fillStyle = timeTint.evening;
         ctx.fillRect(0, 0, W, H);
-      } else if (time === "morning") {
+      } else if (timeRef.current === "morning") {
         ctx.fillStyle = timeTint.morning;
         ctx.fillRect(0, 0, W, H);
       }
@@ -276,7 +276,7 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [time, paused, blockInput, onEnterLocation]);
+  }, []);
 
   return (
     <div className="absolute inset-0">
