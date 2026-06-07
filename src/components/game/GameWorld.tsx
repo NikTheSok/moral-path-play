@@ -140,7 +140,7 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
       const camY = playerRef.current.y - H / 2;
 
       // Sky/ground
-      ctx.fillStyle = skyColor[time];
+      ctx.fillStyle = skyColor[timeRef.current];
       ctx.fillRect(0, 0, W, H);
 
       // Ground grid
