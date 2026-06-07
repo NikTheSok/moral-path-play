@@ -120,7 +120,7 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
 
         if (near && near !== lastTriggeredRef.current) {
           lastTriggeredRef.current = near;
-          onEnterLocation(near);
+          onEnterRef.current(near);
         } else if (!near) {
           lastTriggeredRef.current = null;
         }
