@@ -205,7 +205,7 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
         ctx.strokeRect(loc.x - 38 * pulse, loc.y - 38 * pulse, 76 * pulse, 76 * pulse);
 
         // Window
-        ctx.fillStyle = time === "evening" ? "rgba(255,210,130,0.9)" : "rgba(255,230,180,0.35)";
+        ctx.fillStyle = timeRef.current === "evening" ? "rgba(255,210,130,0.9)" : "rgba(255,230,180,0.35)";
         ctx.fillRect(loc.x - 14, loc.y - 14, 28, 28);
 
         // Emoji icon
