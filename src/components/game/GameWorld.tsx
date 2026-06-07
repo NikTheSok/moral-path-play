@@ -30,6 +30,15 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
   const keysRef = useRef<Set<string>>(new Set());
   const lastTriggeredRef = useRef<LocationId | null>(null);
   const [nearLocation, setNearLocation] = useState<string | null>(null);
+  const onEnterRef = useRef(onEnterLocation);
+  const pausedRef = useRef(paused);
+  const blockRef = useRef(blockInput);
+  const timeRef = useRef(time);
+  useEffect(() => { onEnterRef.current = onEnterLocation; }, [onEnterLocation]);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  useEffect(() => { blockRef.current = blockInput; }, [blockInput]);
+  useEffect(() => { timeRef.current = time; }, [time]);
+
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
