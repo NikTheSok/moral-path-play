@@ -95,7 +95,7 @@ export function GameWorld({ time, paused, onEnterLocation, blockInput }: Props) 
       last = now;
       animTime += dt;
 
-      if (!paused && !blockInput) {
+      if (!pausedRef.current && !blockRef.current) {
         let dx = 0, dy = 0;
         const k = keysRef.current;
         if (k.has("w") || k.has("arrowup")) dy -= 1;
