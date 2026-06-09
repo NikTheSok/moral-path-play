@@ -97,3 +97,23 @@
   50% { opacity: 1; transform: scale(1.05); }
 }
 @utility pulse-soft { animation: pulse-soft 2.5s ease-in-out infinite; }
+
+/* ============ Pixel art utilities ============ */
+@utility pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+@utility pixel-font {
+  font-family: "Press Start 2P", "VT323", ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+@utility pixel-panel {
+  border-width: 3px;
+  border-style: solid;
+  box-shadow: 4px 4px 0 0 rgba(0,0,0,0.7), inset 0 0 0 2px rgba(0,0,0,0.15);
+  image-rendering: pixelated;
+}
