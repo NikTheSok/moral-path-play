@@ -16,16 +16,25 @@ export type LocationId =
 export interface LocationDef {
   id: LocationId;
   name: string;
-  x: number; // world coords
-  y: number;
-  color: string; // css var
+  x: number; // world X coord (linear side-scroller)
   emoji: string;
+  /** Visual building style for the pixel art */
+  kind: "house" | "shop" | "school" | "park" | "stop" | "corner" | "cafe";
 }
 
-export interface Choice {
+export interface StageChoice {
   label: string;
-  effects: Partial<Morality>;
-  response: string;
+  effects?: Partial<Morality>;
+  /** NPC's reaction line after picking this choice */
+  reply?: string;
+  /** Next stage id. If undefined, this choice ends the scenario. */
+  next?: string;
+}
+
+export interface DialogueStage {
+  /** What the NPC says at the start of this stage */
+  npc: string;
+  choices: StageChoice[];
 }
 
 export interface Scenario {
@@ -35,8 +44,8 @@ export interface Scenario {
   title: string;
   npc: string;
   npcEmoji: string;
-  prompt: string;
-  choices: Choice[];
+  startStage: string;
+  stages: Record<string, DialogueStage>;
 }
 
 export type Screen = "menu" | "instructions" | "playing" | "stats" | "ending";

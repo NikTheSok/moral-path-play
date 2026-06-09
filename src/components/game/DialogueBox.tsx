@@ -1,77 +1,106 @@
 import { motion, AnimatePresence } from "framer-motion";
-import type { Scenario } from "@/game/types";
+import { useEffect, useState } from "react";
+import type { DialogueStage, Scenario, StageChoice } from "@/game/types";
 
 interface Props {
   scenario: Scenario | null;
-  response: string | null;
-  onChoose: (idx: number) => void;
+  stage: DialogueStage | null;
+  pendingReply: { text: string; nextStage: string | null } | null;
+  onChoose: (choice: StageChoice) => void;
   onContinue: () => void;
 }
 
-export function DialogueBox({ scenario, response, onChoose, onContinue }: Props) {
+/** Typewriter hook for retro vibe */
+function useTypewriter(text: string, speed = 18) {
+  const [out, setOut] = useState("");
+  useEffect(() => {
+    setOut("");
+    let i = 0;
+    const id = window.setInterval(() => {
+      i += 1;
+      setOut(text.slice(0, i));
+      if (i >= text.length) window.clearInterval(id);
+    }, speed);
+    return () => window.clearInterval(id);
+  }, [text, speed]);
+  return out;
+}
+
+export function DialogueBox({ scenario, stage, pendingReply, onChoose, onContinue }: Props) {
+  const showing = scenario && (stage || pendingReply);
+  const text = pendingReply ? pendingReply.text : stage?.npc ?? "";
+  const typed = useTypewriter(text);
+  const isComplete = typed.length === text.length;
+
   return (
     <AnimatePresence>
-      {scenario && (
+      {showing && (
         <motion.div
           key="dialogue"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 z-30 flex items-end md:items-center justify-center bg-background/60 backdrop-blur-sm p-4"
+          className="absolute inset-x-0 bottom-0 z-30 flex items-end justify-center p-4 pointer-events-none"
         >
           <motion.div
-            initial={{ y: 60, opacity: 0, scale: 0.96 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 24 }}
-            className="w-full max-w-2xl bg-card border border-border rounded-2xl p-6 md:p-8 shadow-2xl"
+            transition={{ type: "spring", stiffness: 220, damping: 26 }}
+            className="w-full max-w-2xl pointer-events-auto"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-full bg-secondary border border-border flex items-center justify-center text-2xl">
-                {scenario.npcEmoji}
+            {/* NPC name plate */}
+            <div className="flex items-end gap-2 mb-1">
+              <div className="pixel-panel pixel-font text-xs px-3 py-1.5 bg-yellow-300 text-black border-black">
+                <span className="mr-1">{scenario.npcEmoji}</span>
+                {scenario.npc.toUpperCase()}
               </div>
-              <div>
-                <div className="text-xs uppercase tracking-widest text-muted-foreground">{scenario.npc}</div>
-                <h2 className="text-xl text-display text-primary">{scenario.title}</h2>
+              <div className="pixel-font text-[9px] text-yellow-200/90 tracking-widest mb-1">
+                {scenario.title.toUpperCase()}
               </div>
             </div>
 
-            <motion.p
-              key={response ? "resp" : "prompt"}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-foreground/90 leading-relaxed text-base md:text-lg mb-6 italic"
-            >
-              {response ?? scenario.prompt}
-            </motion.p>
+            {/* Main dialogue panel */}
+            <div className="pixel-panel bg-[#1a1428] text-yellow-50 border-yellow-100 p-4 md:p-5">
+              <p className="pixel-font text-[12px] md:text-[13px] leading-[1.9] min-h-[64px]">
+                {typed}
+                {!isComplete && <span className="animate-pulse">▌</span>}
+              </p>
 
-            {!response ? (
-              <div className="space-y-2">
-                {scenario.choices.map((c, i) => (
-                  <motion.button
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 + i * 0.06 }}
-                    whileHover={{ x: 4, backgroundColor: "var(--secondary)" }}
-                    onClick={() => onChoose(i)}
-                    className="w-full text-left px-4 py-3 rounded-lg border border-border bg-background/40 hover:border-primary/60 transition-colors group"
+              {/* Choices OR continue */}
+              {pendingReply ? (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={onContinue}
+                    disabled={!isComplete}
+                    className="pixel-font text-[10px] tracking-widest px-3 py-2 bg-yellow-300 text-black border-2 border-black shadow-[3px_3px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className="text-muted-foreground mr-2 group-hover:text-primary">›</span>
-                    {c.label}
-                  </motion.button>
-                ))}
-              </div>
-            ) : (
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { delay: 0.4 } }}
-                onClick={onContinue}
-                className="w-full px-4 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
-              >
-                Continue
-              </motion.button>
-            )}
+                    ▶ CONTINUE
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-1.5">
+                  {isComplete && stage?.choices.map((c, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                      onClick={() => onChoose(c)}
+                      className="group w-full text-left pixel-font text-[11px] md:text-[12px] leading-[1.7] px-3 py-2 bg-[#2a2040] text-yellow-50 border-2 border-yellow-100/40 hover:bg-yellow-300 hover:text-black hover:border-black transition-colors"
+                    >
+                      <span className="text-yellow-300 group-hover:text-black mr-2">▶</span>
+                      {c.label}
+                    </motion.button>
+                  ))}
+                  {!isComplete && (
+                    <div className="text-[10px] pixel-font text-yellow-200/60 tracking-widest pt-2">
+                      [press space to skip]
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </motion.div>
         </motion.div>
       )}
