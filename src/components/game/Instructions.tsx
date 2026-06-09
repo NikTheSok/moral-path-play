@@ -2,10 +2,11 @@ import { motion } from "framer-motion";
 
 export function Instructions({ onBack }: { onBack: () => void }) {
   const items = [
-    { k: "Move", v: "WASD or Arrow Keys" },
-    { k: "Explore", v: "Walk near a glowing location to enter it" },
-    { k: "Choose", v: "Pick one of three responses in each scenario" },
-    { k: "Reflect", v: "Choices shape your morality across five traits" },
+    { k: "Walk", v: "← A · D → (or Arrow keys) — left and right only" },
+    { k: "Meet", v: "Approach a person to start a conversation" },
+    { k: "Talk", v: "Each scenario unfolds across several dialogue stages" },
+    { k: "Choose", v: "Your replies branch the conversation and shape your morality" },
+    { k: "Day", v: "Morning → Afternoon → Evening as you finish scenes" },
     { k: "Pause", v: "Press Esc anytime" },
   ];
   return (

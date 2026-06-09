@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useGameState } from "@/game/useGameState";
 import { MainMenu } from "./MainMenu";
@@ -13,7 +13,6 @@ import { EndingScreen } from "./EndingScreen";
 export function Game() {
   const g = useGameState();
 
-  // Escape => pause toggle
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && g.screen === "playing" && !g.activeScenario) {
@@ -24,14 +23,8 @@ export function Game() {
     return () => window.removeEventListener("keydown", onKey);
   }, [g]);
 
-  const handleChoose = useCallback((idx: number) => {
-    if (!g.activeScenario) return;
-    g.makeChoice(g.activeScenario.choices[idx]);
-  }, [g]);
-
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
-      {/* World always rendered while playing/ending so canvas stays alive */}
       {(g.screen === "playing" || g.screen === "ending") && (
         <GameWorld
           time={g.time}
@@ -43,7 +36,6 @@ export function Game() {
 
       {g.screen === "playing" && (
         <>
-          {/* HUD */}
           <div className="absolute top-4 left-4 z-20">
             <MoralityPanel morality={g.morality} />
           </div>
@@ -51,21 +43,24 @@ export function Game() {
             <TimeIndicator time={g.time} />
             <button
               onClick={() => g.setPaused(true)}
-              className="bg-card/80 backdrop-blur-md border border-border rounded-full w-10 h-10 flex items-center justify-center hover:bg-secondary"
+              className="pixel-font text-[10px] bg-yellow-300 text-black border-2 border-black px-3 py-2 shadow-[3px_3px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000]"
               aria-label="Pause"
             >
-              ⏸
+              II
             </button>
           </div>
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-xs text-muted-foreground bg-card/60 backdrop-blur px-3 py-1.5 rounded-full border border-border">
-            Move with WASD · Walk into a location to interact
-          </div>
+          {!g.activeScenario && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pixel-font text-[10px] text-yellow-200 bg-black/70 border-2 border-yellow-200/60 px-3 py-1.5">
+              ← A / D → · WALK TO MEET PEOPLE
+            </div>
+          )}
 
           <DialogueBox
             scenario={g.activeScenario}
-            response={g.lastResponse}
-            onChoose={handleChoose}
-            onContinue={g.dismissResponse}
+            stage={g.currentStage}
+            pendingReply={g.pendingReply}
+            onChoose={g.makeChoice}
+            onContinue={g.advance}
           />
 
           <PauseMenu
@@ -78,11 +73,7 @@ export function Game() {
 
       <AnimatePresence mode="wait">
         {g.screen === "menu" && (
-          <MainMenu
-            key="menu"
-            onStart={g.startGame}
-            onInstructions={() => g.setScreen("instructions")}
-          />
+          <MainMenu key="menu" onStart={g.startGame} onInstructions={() => g.setScreen("instructions")} />
         )}
         {g.screen === "instructions" && (
           <Instructions key="ins" onBack={() => g.setScreen("menu")} />
