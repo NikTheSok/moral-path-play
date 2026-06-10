@@ -3,12 +3,15 @@ import { AnimatePresence } from "framer-motion";
 import { useGameState } from "@/game/useGameState";
 import { MainMenu } from "./MainMenu";
 import { Instructions } from "./Instructions";
+import { IntroCutscene } from "./IntroCutscene";
+import { ChargingScreen } from "./ChargingScreen";
 import { GameWorld } from "./GameWorld";
 import { DialogueBox } from "./DialogueBox";
 import { MoralityPanel } from "./MoralityPanel";
 import { TimeIndicator } from "./TimeIndicator";
 import { PauseMenu } from "./PauseMenu";
 import { EndingScreen } from "./EndingScreen";
+import { DAYS } from "@/game/scenarios";
 
 export function Game() {
   const g = useGameState();
@@ -23,14 +26,18 @@ export function Game() {
     return () => window.removeEventListener("keydown", onKey);
   }, [g]);
 
+  const inWorld = g.screen === "playing" || g.screen === "charging";
+
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background">
-      {(g.screen === "playing" || g.screen === "ending") && (
+    <div className="relative h-screen w-screen overflow-hidden bg-black">
+      {inWorld && (
         <GameWorld
+          day={g.day}
           time={g.time}
           paused={g.paused}
           onEnterLocation={g.tryTriggerLocation}
-          blockInput={!!g.activeScenario || g.paused || g.screen === "ending"}
+          blockInput={!!g.activeScenario || g.paused || g.screen !== "playing"}
+          cinematic={!!g.activeScenario}
         />
       )}
 
@@ -40,18 +47,21 @@ export function Game() {
             <MoralityPanel morality={g.morality} />
           </div>
           <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+            <div className="pixel-font text-[10px] tracking-widest bg-black/70 border-2 border-cyan-400/70 px-3 py-2 text-cyan-300" style={{ boxShadow: "0 0 16px rgba(60,232,255,0.4)" }}>
+              DAY {g.day} · {DAYS[g.day].title.toUpperCase()}
+            </div>
             <TimeIndicator time={g.time} />
             <button
               onClick={() => g.setPaused(true)}
-              className="pixel-font text-[10px] bg-yellow-300 text-black border-2 border-black px-3 py-2 shadow-[3px_3px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000]"
-              aria-label="Pause"
+              className="pixel-font text-[10px] bg-cyan-400 text-black border-2 border-black px-3 py-2 shadow-[3px_3px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000]"
             >
               II
             </button>
           </div>
+
           {!g.activeScenario && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pixel-font text-[10px] text-yellow-200 bg-black/70 border-2 border-yellow-200/60 px-3 py-1.5">
-              ← A / D → · WALK TO MEET PEOPLE
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pixel-font text-[10px] text-cyan-300 bg-black/80 border-2 border-cyan-400/60 px-3 py-1.5" style={{ boxShadow: "0 0 12px rgba(60,232,255,0.3)" }}>
+              ◄ A / D ► · WALK FORWARD TO MEET HUMANS
             </div>
           )}
 
@@ -77,6 +87,18 @@ export function Game() {
         )}
         {g.screen === "instructions" && (
           <Instructions key="ins" onBack={() => g.setScreen("menu")} />
+        )}
+        {g.screen === "intro" && (
+          <IntroCutscene key="intro" onComplete={g.beginPlaying} />
+        )}
+        {g.screen === "charging" && (
+          <ChargingScreen
+            key={`charge-${g.day}`}
+            day={g.day}
+            morality={g.morality}
+            isFinal={g.day >= 5}
+            onContinue={g.beginNextDay}
+          />
         )}
         {g.screen === "ending" && (
           <EndingScreen

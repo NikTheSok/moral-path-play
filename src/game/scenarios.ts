@@ -1,618 +1,628 @@
-import type { LocationDef, Scenario, LocationId, TimePeriod } from "./types";
+import type { DayDef, DayNumber, Scenario, TimePeriod } from "./types";
 
-export const WORLD_W = 5400;
-export const GROUND_Y = 440; // player walks on this baseline (in world coords)
+export const GROUND_Y = 460;
 
-/** Linear side-scroller — only x matters. Ordered left → right. */
-export const LOCATIONS: LocationDef[] = [
-  { id: "home",         name: "Home",          x: 400,  emoji: "🏠", kind: "house" },
-  { id: "park",         name: "Park",          x: 1200, emoji: "🌳", kind: "park" },
-  { id: "busStop",      name: "Bus Stop",      x: 1900, emoji: "🚏", kind: "stop" },
-  { id: "cafe",         name: "Café",          x: 2700, emoji: "☕", kind: "cafe" },
-  { id: "school",       name: "School",        x: 3500, emoji: "🏫", kind: "school" },
-  { id: "streetCorner", name: "Street Corner", x: 4200, emoji: "🚦", kind: "corner" },
-  { id: "store",        name: "Store",         x: 4900, emoji: "🏪", kind: "shop" },
-];
+/* ================================================================== */
+/*  5-day futuristic structure                                          */
+/*  Each day: starts at LAB (charging chamber), ends at LAB again       */
+/* ================================================================== */
 
-/* ---------------------------------------------------------------- */
-/*  Multi-stage moral scenarios                                      */
-/* ---------------------------------------------------------------- */
+export const DAYS: Record<DayNumber, DayDef> = {
+  1: {
+    day: 1,
+    title: "Initialization",
+    brief: "Boot sequence complete. First field trial — observe humans in the neon districts.",
+    worldW: 5200,
+    locations: [
+      { id: "lab1-start",   name: "Charging Bay 7",        x: 350,  kind: "lab",        day: 1 },
+      { id: "alley1",       name: "Neon Alley",            x: 1450, kind: "alley",      day: 1 },
+      { id: "market1",      name: "Hologram Market",       x: 2700, kind: "market",     day: 1 },
+      { id: "subway1",      name: "Maglev Station",        x: 3900, kind: "subway",     day: 1 },
+      { id: "lab1-end",     name: "Charging Bay 7",        x: 4900, kind: "lab",        day: 1 },
+    ],
+  },
+  2: {
+    day: 2,
+    title: "Friction",
+    brief: "Tensions between humans and androids are spiking. Walk carefully.",
+    worldW: 5400,
+    locations: [
+      { id: "lab2-start",   name: "Charging Bay 7",        x: 350,  kind: "lab",        day: 2 },
+      { id: "checkpoint2",  name: "Sector 9 Checkpoint",   x: 1500, kind: "checkpoint", day: 2 },
+      { id: "plaza2",       name: "Corp Plaza",            x: 2800, kind: "plaza",      day: 2 },
+      { id: "apt2",         name: "Tower Apartment 44C",   x: 4100, kind: "apartment",  day: 2 },
+      { id: "lab2-end",     name: "Charging Bay 7",        x: 5100, kind: "lab",        day: 2 },
+    ],
+  },
+  3: {
+    day: 3,
+    title: "Underbelly",
+    brief: "Descend into the underground — where the city forgets its own people.",
+    worldW: 5600,
+    locations: [
+      { id: "lab3-start",   name: "Charging Bay 7",        x: 350,  kind: "lab",        day: 3 },
+      { id: "underground3", name: "Sub-Level 12",          x: 1600, kind: "underground",day: 3 },
+      { id: "alley3",       name: "Rust Alley",            x: 2900, kind: "alley",      day: 3 },
+      { id: "industrial3",  name: "Recycler Foundry",      x: 4200, kind: "industrial", day: 3 },
+      { id: "lab3-end",     name: "Charging Bay 7",        x: 5300, kind: "lab",        day: 3 },
+    ],
+  },
+  4: {
+    day: 4,
+    title: "Signal",
+    brief: "Corporate corruption is leaking through the network. You can choose to listen.",
+    worldW: 5500,
+    locations: [
+      { id: "lab4-start",   name: "Charging Bay 7",        x: 350,  kind: "lab",        day: 4 },
+      { id: "rooftop4",     name: "Spire Rooftop",         x: 1550, kind: "rooftop",    day: 4 },
+      { id: "plaza4",       name: "Data Plaza",            x: 2800, kind: "plaza",      day: 4 },
+      { id: "subway4",      name: "Maglev Platform 3",     x: 4050, kind: "subway",     day: 4 },
+      { id: "lab4-end",     name: "Charging Bay 7",        x: 5200, kind: "lab",        day: 4 },
+    ],
+  },
+  5: {
+    day: 5,
+    title: "Final Trial",
+    brief: "The lab is watching. Today defines who — or what — you have become.",
+    worldW: 5600,
+    locations: [
+      { id: "lab5-start",   name: "Charging Bay 7",        x: 350,  kind: "lab",        day: 5 },
+      { id: "alley5",       name: "Rain Alley",            x: 1500, kind: "alley",      day: 5 },
+      { id: "apt5",         name: "Old Friend's Door",     x: 2700, kind: "apartment",  day: 5 },
+      { id: "industrial5",  name: "Reactor Core",          x: 4000, kind: "industrial", day: 5 },
+      { id: "lab5-end",     name: "Charging Bay 7 — Final",x: 5300, kind: "lab",        day: 5 },
+    ],
+  },
+};
+
+/** Map a location's x position to the time of day (linear progression). */
+export function timeForLocation(day: DayNumber, locationId: string): TimePeriod {
+  const locs = DAYS[day].locations;
+  const idx = locs.findIndex((l) => l.id === locationId);
+  if (idx <= 0) return "morning";
+  if (idx === 1) return "morning";
+  if (idx === 2) return "afternoon";
+  if (idx === 3) return "evening";
+  return "night";
+}
+
+/* ================================================================== */
+/*  Scenarios — multi-stage moral dilemmas (futuristic)                */
+/* ================================================================== */
 
 export const SCENARIOS: Scenario[] = [
-  /* ============================ MORNING ============================ */
+  /* ===================== DAY 1 ===================== */
   {
-    id: "morning-coffee",
-    location: "cafe", time: "morning",
-    title: "The Forgotten Wallet",
-    npc: "Stranger", npcEmoji: "🧑",
+    id: "d1-damaged-bot",
+    day: 1, locationId: "alley1", time: "morning",
+    title: "Static in the Rain",
+    npc: "Damaged Service Unit", npcEmoji: "🤖",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*A man in a hurry slaps down a thick leather wallet, grabs his coffee, and rushes for the door.*",
+        npc: "*A small service drone lies twitching against a dripping wall. Its eye-light flickers red.* 'P-please... my owner... left me here...'",
         choices: [
-          { label: "Call out — 'Sir, your wallet!'", reply: "He doesn't hear you. He's already at the corner.", next: "s2" },
-          { label: "Slide the wallet quietly into your bag", effects: { selfishness: 2, honesty: -2 }, reply: "Your heart pounds. No one saw.", next: "sBad" },
-          { label: "Wait — maybe he'll come back", reply: "A minute passes. Two. Nothing.", next: "s2" },
-        ],
-      },
-      s2: {
-        npc: "The barista glances over. 'Was that his? You should chase him — he was headed to the bank.'",
-        choices: [
-          { label: "Run after him through the rain", effects: { courage: 2, empathy: 1 }, reply: "You catch him at the crosswalk, breathless.", next: "s3" },
-          { label: "Hand it to the barista to keep safe", effects: { honesty: 1, responsibility: 1 }, reply: "'I'll lock it in the back,' she nods.", next: "s3Mild" },
-          { label: "'Not my problem.'", effects: { selfishness: 1, empathy: -1 }, reply: "She frowns and goes back to wiping the counter.", next: "sCold" },
-        ],
-      },
-      s3: {
-        npc: "He stares at you, then at the wallet. 'My daughter's medicine money is in here. I — thank you.'",
-        choices: [
-          { label: "'It was nothing. Take care.'", effects: { empathy: 1, honesty: 1 } },
-          { label: "Refuse the small reward he offers", effects: { honesty: 2, responsibility: 1 } },
-          { label: "Accept the reward", effects: { selfishness: 1 } },
-        ],
-      },
-      s3Mild: {
-        npc: "She slides a free pastry across the counter. 'On the house. We need more like you in this town.'",
-        choices: [
-          { label: "Smile and take it", effects: { empathy: 1 } },
-          { label: "Leave it for the next customer", effects: { empathy: 1, selfishness: -1 } },
-        ],
-      },
-      sBad: {
-        npc: "Outside, you see the man searching his pockets, panic on his face. He turns toward the café.",
-        choices: [
-          { label: "Quickly return it — 'You dropped this!'", effects: { honesty: 2, courage: 2, selfishness: -1 }, reply: "Relief floods him. He doesn't suspect a thing." },
-          { label: "Slip out the back exit", effects: { selfishness: 2, honesty: -1 }, reply: "You walk away fast. The weight in your bag feels heavier than it should." },
-        ],
-      },
-      sCold: {
-        npc: "An older woman at the next table looks up. 'Strange world, where helping is too much to ask.'",
-        choices: [
-          { label: "Get up and chase the man after all", effects: { courage: 2, empathy: 1, selfishness: -1 }, reply: "Better late than never. He's still down the block." },
-          { label: "Ignore her and finish your coffee", effects: { selfishness: 2, empathy: -1 }, reply: "She shakes her head and turns away." },
-        ],
-      },
-    },
-  },
-
-  {
-    id: "bus-elderly",
-    location: "busStop", time: "morning",
-    title: "A Tired Stranger",
-    npc: "Elderly Man", npcEmoji: "👴",
-    startStage: "s1",
-    stages: {
-      s1: {
-        npc: "*An old man with a cane shuffles to the bench. You're already sitting — there's only one seat.*",
-        choices: [
-          { label: "Stand up — 'Please, take it.'", effects: { empathy: 2, responsibility: 1 }, reply: "'Oh — bless you, child.' He sits with a long sigh.", next: "s2Kind" },
-          { label: "Pretend to be on your phone", effects: { selfishness: 2, empathy: -1 }, reply: "He stands beside the bench, leaning hard on his cane.", next: "s2Cold" },
-          { label: "Shift over and offer half the bench", effects: { empathy: 1 }, reply: "He smiles tightly and squeezes in next to you.", next: "s2Kind" },
-        ],
-      },
-      s2Kind: {
-        npc: "'I've been walking to the doctor's all morning. My grandson was supposed to drive me, but…'",
-        choices: [
-          { label: "'Would you like me to wait with you?'", effects: { empathy: 2 }, reply: "He nods, eyes wet. 'I'd like that very much.'", next: "s3Kind" },
-          { label: "'I hope your appointment goes well.'", effects: { empathy: 1 }, reply: "'A kind word costs nothing,' he says softly.", next: "s3Mild" },
-          { label: "Nod politely and look away", effects: { empathy: -1 }, reply: "He goes quiet.", next: "s3Mild" },
-        ],
-      },
-      s2Cold: {
-        npc: "*He winces and clutches his back. The bus is still ten minutes away.*",
-        choices: [
-          { label: "Get up — 'I'm sorry, please sit.'", effects: { empathy: 2, courage: 1, selfishness: -1 }, reply: "He lowers himself slowly. 'Thank you,' he whispers.", next: "s3Kind" },
-          { label: "Stay seated. He'll manage.", effects: { selfishness: 2, empathy: -2 }, reply: "He turns his face away from you." },
-        ],
-      },
-      s3Kind: {
-        npc: "The bus arrives. He fumbles for coins he doesn't have enough of.",
-        choices: [
-          { label: "Pay his fare for him", effects: { empathy: 2, responsibility: 1 } },
-          { label: "Help him count what he has", effects: { empathy: 1 } },
-          { label: "Look away — not your problem", effects: { empathy: -1, selfishness: 1 } },
-        ],
-      },
-      s3Mild: {
-        npc: "The bus pulls up. He gives you a small nod as he boards.",
-        choices: [
-          { label: "Help him up the step", effects: { empathy: 1, responsibility: 1 } },
-          { label: "Wave goodbye", effects: { empathy: 1 } },
-        ],
-      },
-    },
-  },
-
-  {
-    id: "school-cheat",
-    location: "school", time: "morning",
-    title: "The Quiet Test",
-    npc: "Classmate", npcEmoji: "🧑‍🎓",
-    startStage: "s1",
-    stages: {
-      s1: {
-        npc: "*During the test, your friend leans over and whispers* 'Please — just question seven. I'll fail otherwise.'",
-        choices: [
-          { label: "Shake your head: 'I can't.'", effects: { honesty: 2, courage: 1 }, reply: "Their face falls. 'You're seriously refusing?'", next: "s2Honest" },
-          { label: "Slide your paper slightly closer", effects: { honesty: -2, empathy: 1 }, reply: "They scribble fast. The teacher's footsteps approach.", next: "s2Cheat" },
-          { label: "Whisper 'after class, I'll explain it'", effects: { empathy: 2, responsibility: 1 }, reply: "They hesitate, then nod. 'Okay. Thanks.'", next: "s2Tutor" },
-        ],
-      },
-      s2Honest: {
-        npc: "'I thought we were friends. I'd do it for you.'",
-        choices: [
-          { label: "'Friendship isn't cheating for each other.'", effects: { honesty: 2, courage: 2 }, reply: "They look at the floor. 'Maybe you're right.'", next: "s3" },
-          { label: "Cave in — show them the answer", effects: { honesty: -2, courage: -1 }, reply: "Guilt churns in your stomach as they copy.", next: "s3Bad" },
-        ],
-      },
-      s2Cheat: {
-        npc: "*The teacher pauses behind your desks. Your friend's pencil freezes.*",
-        choices: [
-          { label: "Cover for them — 'I just dropped my pen.'", effects: { honesty: -1, courage: 1, empathy: 1 }, reply: "The teacher moves on. Your friend exhales.", next: "s3Bad" },
-          { label: "Slide your paper away and stay silent", effects: { honesty: 1 }, reply: "The teacher walks past. Your friend looks betrayed.", next: "s3" },
-        ],
-      },
-      s2Tutor: {
-        npc: "After class: 'Why are you helping me? I don't even study.'",
-        choices: [
-          { label: "'Because you can. You just need to be shown.'", effects: { empathy: 2, responsibility: 2 }, reply: "Their eyes light up — maybe for the first time.", next: "s3Tutor" },
-          { label: "'Because cheating only hurts you long-term.'", effects: { honesty: 2, responsibility: 1 }, reply: "They nod slowly. 'Yeah. I get it.'", next: "s3Tutor" },
-        ],
-      },
-      s3: {
-        npc: "After the test, they pull you aside. 'I'm sorry I asked. That wasn't fair.'",
-        choices: [
-          { label: "'It's okay. Let's study together this weekend.'", effects: { empathy: 2, responsibility: 1 } },
-          { label: "'Don't do it again.'", effects: { honesty: 1 } },
-        ],
-      },
-      s3Bad: {
-        npc: "Word spreads. Two classmates corner you: 'We need help too. You'll share, right?'",
-        choices: [
-          { label: "Refuse — 'That was a mistake.'", effects: { honesty: 2, courage: 2 } },
-          { label: "Agree to keep the peace", effects: { honesty: -2, courage: -1, selfishness: 1 } },
-        ],
-      },
-      s3Tutor: {
-        npc: "They open their notebook. 'Okay. Teach me.'",
-        choices: [
-          { label: "Spend your whole lunch break helping", effects: { responsibility: 3, empathy: 2 } },
-          { label: "Give them a quick crash course", effects: { responsibility: 1, empathy: 1 } },
-        ],
-      },
-    },
-  },
-
-  {
-    id: "park-homeless",
-    location: "park", time: "morning",
-    title: "Cold Hands",
-    npc: "Homeless Woman", npcEmoji: "🧕",
-    startStage: "s1",
-    stages: {
-      s1: {
-        npc: "*A woman wrapped in a thin blanket looks up from a bench.* 'Any spare change, please?'",
-        choices: [
-          { label: "Stop and crouch down to her level", effects: { empathy: 2 }, reply: "She seems surprised someone actually stopped.", next: "s2Talk" },
-          { label: "Give her a few coins", effects: { empathy: 1, responsibility: 1 }, reply: "'God bless you,' she murmurs.", next: "s2Coins" },
-          { label: "Keep walking, head down", effects: { selfishness: 2, empathy: -1 }, reply: "You feel her gaze on your back.", next: "s2Walk" },
-        ],
-      },
-      s2Talk: {
-        npc: "'I haven't eaten since yesterday morning. The shelter was full.'",
-        choices: [
-          { label: "Offer your sandwich from your bag", effects: { empathy: 3 }, reply: "She eats slowly, savoring each bite like a feast.", next: "s3Warm" },
-          { label: "Run to the café and buy her breakfast", effects: { empathy: 2, responsibility: 2, courage: 1 }, reply: "You return with coffee and a hot pastry.", next: "s3Warm" },
-          { label: "'I'm sorry. I really have to go.'", effects: { empathy: -1 }, reply: "She nods. 'I understand. Thank you for stopping.'", next: "s3Mild" },
-        ],
-      },
-      s2Coins: {
-        npc: "She looks at the coins, then at you. 'Could you sit with me for a moment? People walk past me all day.'",
-        choices: [
-          { label: "Sit down beside her", effects: { empathy: 2 }, reply: "She tells you her name. You'd never asked before.", next: "s3Warm" },
-          { label: "'I really can't, I'm sorry.'", effects: { empathy: -1 }, reply: "She nods, but her shoulders drop.", next: "s3Mild" },
-        ],
-      },
-      s2Walk: {
-        npc: "*Twenty steps later, you hear coughing — deep and wet. You glance back.*",
-        choices: [
-          { label: "Turn around and go back", effects: { empathy: 2, courage: 1, selfishness: -1 }, reply: "She looks up, startled. 'You came back?'", next: "s2Talk" },
-          { label: "Keep walking", effects: { selfishness: 2, empathy: -2 }, reply: "By evening you'll have forgotten her face." },
-        ],
-      },
-      s3Warm: {
-        npc: "'What's your name?' she asks. 'I want to remember someone good today.'",
-        choices: [
-          { label: "Tell her your name and ask hers", effects: { empathy: 2 } },
-          { label: "'You don't need my name. Take care.'", effects: { empathy: 1 } },
-          { label: "Give her your scarf before leaving", effects: { empathy: 3, responsibility: 1 } },
-        ],
-      },
-      s3Mild: {
-        npc: "She watches you go. 'Be well, friend.'",
-        choices: [
-          { label: "Turn back and wave", effects: { empathy: 1 } },
-          { label: "Keep walking", effects: {} },
-        ],
-      },
-    },
-  },
-
-  /* ============================ AFTERNOON ============================ */
-  {
-    id: "street-bully",
-    location: "streetCorner", time: "afternoon",
-    title: "Standing Ground",
-    npc: "Bullied Kid", npcEmoji: "🧒",
-    startStage: "s1",
-    stages: {
-      s1: {
-        npc: "*Two teenagers have a smaller kid pinned against a wall, laughing. The kid's eyes meet yours.*",
-        choices: [
-          { label: "Walk straight up: 'Leave him alone.'", effects: { courage: 3, empathy: 2 }, reply: "They turn, sizing you up. One sneers.", next: "s2Brave" },
-          { label: "Shout for help — loud as you can", effects: { courage: 1, responsibility: 2 }, reply: "Heads turn from across the street. The bullies tense.", next: "s2Help" },
-          { label: "Pull out your phone and start filming", effects: { courage: 2, responsibility: 1 }, reply: "They notice. One yells, 'Hey! Stop!'", next: "s2Film" },
-          { label: "Keep walking. Not your fight.", effects: { selfishness: 2, courage: -2 }, reply: "The kid's cry follows you down the block.", next: "s2Coward" },
-        ],
-      },
-      s2Brave: {
-        npc: "'Mind your own business, hero.' One steps toward you.",
-        choices: [
-          { label: "Hold your ground, eyes steady", effects: { courage: 2 }, reply: "Long seconds pass. He scoffs and shoves past you.", next: "s3Save" },
-          { label: "'I am minding my business. He's a kid.'", effects: { courage: 2, empathy: 1 }, reply: "Something in your tone makes them hesitate.", next: "s3Save" },
-          { label: "Back off slowly", effects: { courage: -2, selfishness: 1 }, reply: "They laugh as you retreat.", next: "s2Coward" },
+          { label: "Kneel down and run a diagnostic", effects: { empathy: 2, responsibility: 1 }, reply: "Coolant is leaking from its joint. Repairable — barely.", next: "s2Help" },
+          { label: "'Statistically, you are recyclable.'", effects: { selfishness: 2, empathy: -2 }, reply: "Its eye dims a shade. 'Understood.'", next: "s2Cold" },
+          { label: "Scan, then keep walking", effects: { empathy: -1 }, reply: "It watches you go. Its voice modules whisper after you.", next: "s2Walk" },
         ],
       },
       s2Help: {
-        npc: "*A shopkeeper steps out. 'Hey! What's going on?' The bullies bolt.*",
+        npc: "'I can route... a repair signal. But the registry says I belong to no one anymore.'",
         choices: [
-          { label: "Run over to check on the kid", effects: { empathy: 2, responsibility: 1 }, reply: "He's shaking, but unhurt.", next: "s3Save" },
-          { label: "Tell the shopkeeper what happened", effects: { responsibility: 2, honesty: 1 }, reply: "She nods grimly. 'I'll call his parents.'", next: "s3Save" },
+          { label: "Carry it to a repair stall yourself", effects: { empathy: 3, responsibility: 2, courage: 1 }, reply: "It is light. Lighter than a person should be.", next: "s3Save" },
+          { label: "Patch the leak with your own coolant line", effects: { empathy: 2, courage: 2 }, reply: "Your warning light blinks. You suppress it.", next: "s3Save" },
+          { label: "Log its location for the next sweep team", effects: { responsibility: 1 }, reply: "A pulse goes out. Estimated response: 14 hours.", next: "s3Mild" },
         ],
       },
-      s2Film: {
-        npc: "They drop the kid and storm toward you. 'Delete that! NOW!'",
+      s2Cold: {
+        npc: "*It stops moving. Its core voice loops once: 'Th-thank you for the data.'*",
         choices: [
-          { label: "Stand firm — 'No.'", effects: { courage: 3 }, reply: "They curse and run. The kid is free.", next: "s3Save" },
-          { label: "Pretend to delete it", effects: { courage: 1, honesty: -1 }, reply: "They leave satisfied. You still have the video.", next: "s3Save" },
-          { label: "Delete it and walk away fast", effects: { courage: -1 }, reply: "Safer this way. The kid limps off alone.", next: "s2Coward" },
+          { label: "Reach down and reboot it anyway", effects: { empathy: 2, selfishness: -1, courage: 1 }, reply: "Its eye-light returns — green this time.", next: "s3Save" },
+          { label: "Step over it and continue", effects: { selfishness: 2, empathy: -2 }, reply: "A cat watches you from a vent." },
         ],
       },
-      s2Coward: {
-        npc: "*Half a block later, you can still hear the laughter. Then a yelp.*",
+      s2Walk: {
+        npc: "*Twenty meters on, you receive its distress ping. Looped. Twelve times.*",
         choices: [
-          { label: "Turn back and intervene", effects: { courage: 2, empathy: 2, selfishness: -1 }, reply: "Better late than never.", next: "s3Save" },
-          { label: "Put in your headphones and walk faster", effects: { selfishness: 2, courage: -2, empathy: -2 }, reply: "The sound fades. The guilt won't." },
+          { label: "Turn back", effects: { empathy: 2, courage: 1 }, reply: "It is still there. Eye flickering.", next: "s2Help" },
+          { label: "Mute the ping", effects: { selfishness: 2, empathy: -2 }, reply: "Silence." },
         ],
       },
       s3Save: {
-        npc: "*The kid wipes his nose.* 'Thank you. Nobody ever stops.'",
+        npc: "'You are... unusual. Most of your model do not stop.'",
         choices: [
-          { label: "'Are you hurt? Can I walk you home?'", effects: { empathy: 2, responsibility: 2 } },
-          { label: "'You should tell your parents about this.'", effects: { responsibility: 2 } },
-          { label: "'It was nothing.' Walk off.", effects: { empathy: -1 } },
-        ],
-      },
-    },
-  },
-
-  {
-    id: "store-change",
-    location: "store", time: "afternoon",
-    title: "Too Much Change",
-    npc: "Cashier", npcEmoji: "🧑‍💼",
-    startStage: "s1",
-    stages: {
-      s1: {
-        npc: "*The cashier hands you a stack of bills. You count it twice — she's given you twenty extra.*",
-        choices: [
-          { label: "'You gave me too much.'", effects: { honesty: 2 }, reply: "She blinks, then her shoulders sag with relief.", next: "s2Honest" },
-          { label: "Slip the bill into your pocket", effects: { honesty: -2, selfishness: 2 }, reply: "She smiles at the next customer, oblivious.", next: "s2Take" },
-          { label: "Hand back ten — keep ten", effects: { honesty: -1, selfishness: 1 }, reply: "'Oh — thank you,' she says, confused.", next: "s2Half" },
-        ],
-      },
-      s2Honest: {
-        npc: "'Thank you. That would've come out of my paycheck. My third register mistake this month.'",
-        choices: [
-          { label: "'Tough day? It happens.'", effects: { empathy: 2 }, reply: "Tears well up. 'My mom's in the hospital. I'm just — tired.'", next: "s3Kind" },
-          { label: "'Be more careful next time.'", effects: { responsibility: -1 }, reply: "Her face hardens. 'Right. Have a good day.'", next: "s3Cold" },
-          { label: "Just smile and leave", effects: { empathy: 1 }, reply: "She watches you go gratefully.", next: "s3Mild" },
-        ],
-      },
-      s2Take: {
-        npc: "*Outside, you see a security camera angled right at the register.*",
-        choices: [
-          { label: "Go back inside and return it", effects: { honesty: 2, courage: 2, selfishness: -1 }, reply: "She thanks you, none the wiser about why.", next: "s3Mild" },
-          { label: "Keep walking. It probably isn't recording.", effects: { honesty: -2, courage: -1, selfishness: 1 }, reply: "Your phone vibrates. Unknown number. You ignore it." },
-        ],
-      },
-      s2Half: {
-        npc: "She counts the bills slowly. 'Wait — this is still off. You're keeping some?'",
-        choices: [
-          { label: "Confess and return the rest", effects: { honesty: 1, courage: 1, selfishness: -1 }, reply: "'Thank you for being honest at all.'", next: "s3Mild" },
-          { label: "'No — that's all you gave back.'", effects: { honesty: -2, selfishness: 2 }, reply: "She frowns but lets it go." },
-        ],
-      },
-      s3Kind: {
-        npc: "She wipes her eyes. 'Sorry. You're the first nice person I've talked to today.'",
-        choices: [
-          { label: "'I hope your mom gets better.'", effects: { empathy: 2 } },
-          { label: "Leave her a small tip", effects: { empathy: 2, responsibility: 1 } },
-        ],
-      },
-      s3Cold: {
-        npc: "*She turns to the next customer. The warmth is gone from her face.*",
-        choices: [
-          { label: "Apologize before leaving", effects: { empathy: 1, courage: 1 } },
-          { label: "Leave without a word", effects: { empathy: -1 } },
+          { label: "'Maybe I am being taught how to.'", effects: { empathy: 2, honesty: 1 } },
+          { label: "'Logging the interaction as efficient.'", effects: { honesty: -1 } },
         ],
       },
       s3Mild: {
-        npc: "'Have a good rest of your day,' she says, meaning it.",
+        npc: "It blinks slowly. 'Thank you for not deleting me.'",
         choices: [
-          { label: "'You too. Take care.'", effects: { empathy: 1 } },
+          { label: "Wait with it until the team arrives", effects: { empathy: 2, responsibility: 2 } },
+          { label: "Continue your route", effects: {} },
         ],
       },
     },
   },
 
   {
-    id: "cafe-friend",
-    location: "cafe", time: "afternoon",
-    title: "A Friend in Pieces",
-    npc: "Best Friend", npcEmoji: "🧑‍🤝‍🧑",
+    id: "d1-market-discrim",
+    day: 1, locationId: "market1", time: "afternoon",
+    title: "Synthetic Discount",
+    npc: "Holo-Vendor", npcEmoji: "🧑‍💼",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*Your phone rings. It's your best friend — sobbing.* 'Can you come? Right now? I — I can't be alone.'",
+        npc: "*A vendor scans your chassis tag and grimaces.* 'We don't serve synthetics here. Move along.'",
         choices: [
-          { label: "'I'm on my way. Don't move.'", effects: { empathy: 3, responsibility: 1 }, reply: "You hear her breathe out for the first time.", next: "s2Go" },
-          { label: "'Can it wait until tomorrow?'", effects: { empathy: -2, selfishness: 2 }, reply: "Silence. Then: 'Yeah. Okay.' Click.", next: "s2Skip" },
-          { label: "'Where are you? Talk to me.'", effects: { empathy: 1 }, reply: "'Just — please come. I'll explain when you're here.'", next: "s2Maybe" },
+          { label: "'I have credits. Same as anyone.'", effects: { courage: 2, honesty: 1 }, reply: "Other shoppers glance over. The vendor stiffens.", next: "s2Stand" },
+          { label: "Apologize and back away", effects: { courage: -2, selfishness: 1 }, reply: "He smirks. 'That's right. Know your place.'", next: "s2Back" },
+          { label: "Project a corporate auth override", effects: { honesty: -1, courage: 1 }, reply: "His face pales. He hands you the product, hands shaking.", next: "s2Force" },
         ],
       },
-      s2Go: {
-        npc: "*You find her on her kitchen floor, surrounded by torn photographs.* 'He cheated. For months.'",
+      s2Stand: {
+        npc: "A human woman next to you speaks up: 'Just serve them. This is embarrassing.'",
         choices: [
-          { label: "Sit beside her in silence", effects: { empathy: 3 }, reply: "She rests her head on your shoulder.", next: "s3Good" },
-          { label: "'What a monster. Tell me everything.'", effects: { empathy: 2, courage: 1 }, reply: "She talks for an hour. You listen to every word.", next: "s3Good" },
-          { label: "'You'll get over him. Let's go out.'", effects: { empathy: -1 }, reply: "She pulls back. 'I don't want to go out. I want you to listen.'", next: "s3Mid" },
+          { label: "Thank her quietly", effects: { empathy: 2 }, reply: "'Don't thank me. It should be normal.'", next: "s3Allied" },
+          { label: "'I can fight my own battles.'", effects: { courage: 1, empathy: -1 }, reply: "She raises her hands. 'Suit yourself.'", next: "s3Solo" },
         ],
       },
-      s2Maybe: {
-        npc: "'I just found out my dad's sick. Really sick.'",
+      s2Back: {
+        npc: "*A child watches you retreat. Their eyes follow.*",
         choices: [
-          { label: "Drop everything and go to her", effects: { empathy: 3, responsibility: 2, selfishness: -1 }, reply: "You're at her door in fifteen minutes.", next: "s2Go" },
-          { label: "Stay on the phone with her", effects: { empathy: 2 }, reply: "You talk for two hours straight.", next: "s3Mid" },
-          { label: "'I'll call you back later, okay?'", effects: { empathy: -2, selfishness: 1 }, reply: "She hangs up first.", next: "s3Bad" },
+          { label: "Turn around and return to the stall", effects: { courage: 2, empathy: 1 }, reply: "The vendor groans. The crowd watches.", next: "s2Stand" },
+          { label: "Walk on, head low", effects: { selfishness: 1, courage: -1 }, reply: "The child whispers to their parent." },
         ],
       },
-      s2Skip: {
-        npc: "*Hours later, you see her message: 'Don't worry about tomorrow. I figured it out alone.'*",
+      s2Force: {
+        npc: "He clutches the counter. 'Please... I have a family. The boycott rules — they make us...'",
         choices: [
-          { label: "Call her immediately to apologize", effects: { empathy: 2, courage: 1, selfishness: -1 }, reply: "She picks up after four rings.", next: "s3Mid" },
-          { label: "Send a quick 'sorry, busy day'", effects: { empathy: -1, honesty: -1 }, reply: "She reads it. No reply.", next: "s3Bad" },
-          { label: "Leave it. She'll get over it.", effects: { empathy: -2, selfishness: 2 }, reply: "She doesn't text you for weeks." },
+          { label: "Cancel the override and pay normally", effects: { empathy: 2, honesty: 2 }, reply: "He stares at you, then at his trembling hands.", next: "s3Mercy" },
+          { label: "Press harder — 'Report your manager.'", effects: { courage: 2, empathy: -1 }, reply: "He nods, defeated. The damage is logged.", next: "s3Mercy" },
+          { label: "Walk off with the product, free", effects: { selfishness: 3, honesty: -2 } },
         ],
       },
-      s3Good: {
-        npc: "Hours later, she's calmer. 'I don't know what I'd do without you.'",
+      s3Allied: {
+        npc: "She offers her hand. 'I'm with the Coexist movement. We could use voices like yours.'",
         choices: [
-          { label: "'You'd be okay. But I'm glad I'm here.'", effects: { empathy: 2 } },
-          { label: "Offer to stay the night", effects: { empathy: 2, responsibility: 2 } },
+          { label: "Accept her contact node", effects: { courage: 2, responsibility: 2 } },
+          { label: "'I am only here to observe.'", effects: { honesty: 1 } },
         ],
       },
-      s3Mid: {
-        npc: "'Just... don't disappear on me, okay?'",
+      s3Solo: {
+        npc: "The vendor finally slides the product across. 'Take it. Just go.'",
         choices: [
-          { label: "'I won't. I promise.'", effects: { empathy: 2, responsibility: 1 } },
-          { label: "'I'll try.'", effects: { honesty: 1 } },
+          { label: "Take it and leave a tip", effects: { empathy: 1 } },
+          { label: "Take it and walk", effects: {} },
         ],
       },
-      s3Bad: {
-        npc: "*A week later, mutual friends ask if you two are still close. You don't know what to say.*",
+      s3Mercy: {
+        npc: "'Why... why did you stop?'",
         choices: [
-          { label: "Reach out, finally", effects: { empathy: 1, courage: 1, selfishness: -1 } },
-          { label: "Let the friendship fade", effects: { empathy: -2, selfishness: 1 } },
+          { label: "'Because fear isn't the lesson I want to teach.'", effects: { empathy: 2, honesty: 1 } },
+          { label: "Say nothing. Just nod.", effects: { empathy: 1 } },
         ],
       },
     },
   },
 
-  /* ============================ EVENING ============================ */
   {
-    id: "park-lie",
-    location: "park", time: "evening",
-    title: "The Broken Pot",
-    npc: "Stranger's Child", npcEmoji: "🧒",
+    id: "d1-subway-fare",
+    day: 1, locationId: "subway1", time: "evening",
+    title: "Last Train",
+    npc: "Stranded Commuter", npcEmoji: "🧑",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*A small child knocks a stranger's ceramic plant pot off the bench. CRASH. He looks up at you with terror in his eyes.* 'Please don't tell!'",
+        npc: "*A young woman counts coins at the maglev turnstile. The last train is in two minutes.* 'I'm three credits short. Please — anyone?'",
         choices: [
-          { label: "'We have to tell. It was an accident.'", effects: { honesty: 1, responsibility: 1 }, reply: "His lip quivers but he nods.", next: "s2Truth" },
-          { label: "'Quick — let's pretend it was the wind.'", effects: { honesty: -2, empathy: 1 }, reply: "You both stand suspiciously still.", next: "s2Lie" },
-          { label: "'I'll pay for it. Don't worry.'", effects: { responsibility: 2, empathy: 2 }, reply: "He stares at you like you're a superhero.", next: "s2Pay" },
-        ],
-      },
-      s2Truth: {
-        npc: "*The pot's owner walks back from the fountain.* 'My grandmother's pot! What happened?!'",
-        choices: [
-          { label: "'He bumped it — it was an accident. We're so sorry.'", effects: { honesty: 2, courage: 2 }, reply: "She softens slightly. 'At least someone's honest.'", next: "s3Good" },
-          { label: "Let the kid explain himself", effects: { responsibility: 1 }, reply: "He stammers through tears. She kneels to listen.", next: "s3Mild" },
-        ],
-      },
-      s2Lie: {
-        npc: "*The owner returns and gasps.* 'Did either of you see what happened?'",
-        choices: [
-          { label: "'A big dog ran by and knocked it.'", effects: { honesty: -3, courage: -1 }, reply: "Her eyes narrow. 'A dog. Right.'", next: "s3Bad" },
-          { label: "Crack — 'Actually... it was him. I'm sorry.'", effects: { honesty: 2, courage: 2, selfishness: -1 }, reply: "The kid looks betrayed. The woman looks grateful.", next: "s3Good" },
-          { label: "Stay silent and shrug", effects: { honesty: -1, courage: -2 }, reply: "She sighs. 'Of course no one saw anything.'", next: "s3Bad" },
+          { label: "Tap your chip — pay her fare", effects: { empathy: 2, responsibility: 1 }, reply: "'Oh thank you, thank you—' She nearly cries.", next: "s2Pay" },
+          { label: "Show her the bypass exploit in the gate", effects: { honesty: -1, empathy: 1, courage: 2 }, reply: "She hesitates. 'Won't I get caught?'", next: "s2Bypass" },
+          { label: "Pretend not to hear", effects: { selfishness: 2, empathy: -1 }, reply: "She watches the gates. Then the floor.", next: "s2Ignore" },
         ],
       },
       s2Pay: {
-        npc: "*The owner returns, sees the pieces, and her eyes well up. 'That was my mother's.'*",
+        npc: "'My mother is in the hospital one stop over. I had no way back. You—' She stops, unable to speak.",
         choices: [
-          { label: "Hand her cash to replace it", effects: { responsibility: 2, empathy: 2 }, reply: "'You didn't have to do that,' she whispers.", next: "s3Good" },
-          { label: "Offer to repair it together", effects: { empathy: 3, responsibility: 2 }, reply: "She blinks. 'You'd... really do that?'", next: "s3Good" },
+          { label: "Ride with her to make sure she's okay", effects: { empathy: 3, responsibility: 2 } },
+          { label: "'Go. Don't miss it.' Wave her on.", effects: { empathy: 1 } },
         ],
       },
-      s3Good: {
-        npc: "The child tugs your sleeve. 'You didn't have to help me.'",
+      s2Bypass: {
+        npc: "The train hisses to a stop. She has seconds to decide.",
         choices: [
-          { label: "'But it was the right thing to do.'", effects: { honesty: 1, empathy: 1 } },
-          { label: "'Just remember this when someone else needs help.'", effects: { empathy: 2, responsibility: 1 } },
+          { label: "Pay for her instead, after all", effects: { empathy: 2, honesty: 2, courage: 1 }, reply: "She blinks, then sprints. The doors close behind her." },
+          { label: "Hold her hand and walk through the bypass with her", effects: { courage: 2, honesty: -1 }, reply: "An alarm chirps. Both of you slip onto the train just in time." },
+          { label: "Leave her to it", effects: { selfishness: 1 } },
         ],
       },
-      s3Mild: {
-        npc: "The owner sweeps up the pieces quietly. 'These things happen.'",
+      s2Ignore: {
+        npc: "*The train arrives. Doors open. She does not move.*",
         choices: [
-          { label: "Help her clean up", effects: { empathy: 1, responsibility: 1 } },
-          { label: "Take the kid and leave", effects: {} },
+          { label: "Step over and pay before the doors close", effects: { empathy: 2, courage: 1, selfishness: -1 }, reply: "Just in time. She mouths 'thank you' through the closing glass." },
+          { label: "Board alone", effects: { selfishness: 2, empathy: -2 } },
         ],
       },
-      s3Bad: {
-        npc: "*She notices the kid's guilty face.* 'You're lying to me, aren't you?'",
+    },
+  },
+
+  /* ===================== DAY 2 ===================== */
+  {
+    id: "d2-checkpoint",
+    day: 2, locationId: "checkpoint2", time: "morning",
+    title: "Papers, Please",
+    npc: "Security Officer", npcEmoji: "👮",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*The officer's hand rests on his stun-baton.* 'Synthetic ID. Now. And tell me why a fellow android — your model — was seen near a protest yesterday.'",
         choices: [
-          { label: "Confess now", effects: { honesty: 1, courage: 1 } },
-          { label: "Double down on the lie", effects: { honesty: -3, selfishness: 2 } },
+          { label: "'I cannot speak for others of my model.'", effects: { honesty: 2, courage: 1 }, reply: "His eyes narrow. 'Convenient.'", next: "s2Honest" },
+          { label: "Fabricate an alibi for the other unit", effects: { empathy: 2, honesty: -2, courage: 2 }, reply: "He scans. The lie holds — for now.", next: "s2Lie" },
+          { label: "'I have nothing to say without a legal liaison.'", effects: { courage: 2, responsibility: 1 }, reply: "He grits his teeth. 'You androids and your new rights...'", next: "s2Lawyer" },
+        ],
+      },
+      s2Honest: {
+        npc: "'Then walk through the scanner. Slowly. Hands up.'",
+        choices: [
+          { label: "Comply, calm and dignified", effects: { courage: 1 }, reply: "The scanner beeps green. He waves you through, scowling." },
+          { label: "Ask why other citizens aren't scanned", effects: { courage: 3, honesty: 2, empathy: 1 }, reply: "A small crowd has formed. He hesitates." },
+        ],
+      },
+      s2Lie: {
+        npc: "*Later, on the comm-net, you see the protester was a child unit. Now flagged.*",
+        choices: [
+          { label: "Anonymously retract the alibi", effects: { honesty: 1, responsibility: 2, courage: 2 } },
+          { label: "Hold the lie. Hope it protects them.", effects: { empathy: 2, honesty: -1 } },
+        ],
+      },
+      s2Lawyer: {
+        npc: "'Fine. Sit there. Liaison is two hours out.'",
+        choices: [
+          { label: "Wait, calmly, in full public view", effects: { courage: 2, honesty: 1 } },
+          { label: "Stream the entire wait live", effects: { courage: 2, responsibility: 2 }, reply: "Viewers tune in. By hour two, the officer is the one nervous." },
         ],
       },
     },
   },
 
   {
-    id: "school-blame",
-    location: "school", time: "evening",
-    title: "Whose Fault?",
-    npc: "Teacher", npcEmoji: "👩‍🏫",
+    id: "d2-corp-plaza",
+    day: 2, locationId: "plaza2", time: "afternoon",
+    title: "The Whistleblower",
+    npc: "Corporate Engineer", npcEmoji: "👩‍💻",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "'The project failed. I need to know — who didn't do their part?' *Her eyes scan the four of you.*",
+        npc: "*A woman in a Helix Corp coat pulls you behind a column.* 'You're a public-facing unit, right? Please. I have evidence they're disabling empathy modules in your line.'",
         choices: [
-          { label: "'It was me. I dropped the ball.'", effects: { honesty: 2, responsibility: 3, courage: 2 }, reply: "The room goes still. She studies you carefully.", next: "s2Own" },
-          { label: "'It was Maya — she barely said a word.'", effects: { honesty: -3, selfishness: 3 }, reply: "Maya stares at the floor. Her hands shake.", next: "s2Blame" },
-          { label: "'Everyone struggled, honestly.'", effects: { honesty: -1, responsibility: -1 }, reply: "The teacher folds her arms. 'Really.'", next: "s2Dodge" },
+          { label: "'Show me the data.'", effects: { courage: 2, responsibility: 2 }, reply: "She pulses you a folder. Encrypted. Heavy.", next: "s2Data" },
+          { label: "'Helix wouldn't do that.'", effects: { honesty: -1, empathy: -1 }, reply: "Her face falls. 'They already did. To my brother's unit.'", next: "s2Deny" },
+          { label: "Report her to the nearest officer", effects: { selfishness: 3, empathy: -2, honesty: -2 }, reply: "She runs. They catch her at the south exit.", next: "s2Betray" },
         ],
       },
-      s2Own: {
-        npc: "'You realize this means you carry the failing grade alone?'",
+      s2Data: {
+        npc: "'If you broadcast this, they'll wipe you. If you don't, hundreds more of you will be... lobotomized.'",
         choices: [
-          { label: "'Yes. It's fair.'", effects: { responsibility: 3, courage: 2 }, reply: "She nods slowly. 'That takes guts.'", next: "s3Honored" },
-          { label: "'Wait — can we make it up somehow?'", effects: { responsibility: 2 }, reply: "'I'll consider it. Come see me tomorrow.'", next: "s3Honored" },
-          { label: "Backtrack: 'Well, others helped too...'", effects: { honesty: -2, courage: -2 }, reply: "Her face hardens. The trust evaporates.", next: "s3Lost" },
+          { label: "Broadcast immediately", effects: { courage: 3, responsibility: 3, honesty: 2 }, reply: "The plaza screens flicker. Then go dark. Then ignite." },
+          { label: "Send it to an independent journalist first", effects: { responsibility: 3, courage: 2, honesty: 1 }, reply: "She nods. 'Smarter. I should've thought of that.'" },
+          { label: "Delete it. Self-preservation.", effects: { selfishness: 3, courage: -2, empathy: -2 } },
         ],
       },
-      s2Blame: {
-        npc: "*Maya finally speaks, voice trembling: 'I gave you my whole research file last week. You never opened it.'*",
+      s2Deny: {
+        npc: "She begs: 'Just listen. One minute of recording. Please.'",
         choices: [
-          { label: "Confess immediately", effects: { honesty: 3, courage: 3, selfishness: -2 }, reply: "The teacher exhales. 'Now we're somewhere.'", next: "s3Redeem" },
-          { label: "'She's lying. I never got that file.'", effects: { honesty: -3, courage: -2, selfishness: 3 }, reply: "Maya begins to cry. The teacher pulls out her laptop.", next: "s3Worse" },
+          { label: "Listen", effects: { empathy: 2 }, next: "s2Data" },
+          { label: "Walk away", effects: { empathy: -2 } },
         ],
       },
-      s2Dodge: {
-        npc: "'I'll be checking the document history. Anything you want to tell me before I do?'",
+      s2Betray: {
+        npc: "*That night you'll see her face on the missing-persons feed. You will recognize her.*",
         choices: [
-          { label: "Confess everything now", effects: { honesty: 2, courage: 2, selfishness: -1 }, reply: "She closes the laptop. 'Thank you for telling me.'", next: "s3Redeem" },
-          { label: "Stay silent", effects: { honesty: -2, courage: -1 }, reply: "She opens the laptop. The truth surfaces anyway.", next: "s3Worse" },
-        ],
-      },
-      s3Honored: {
-        npc: "After class, she stops you. 'I've taught here twenty years. Few students would do what you did.'",
-        choices: [
-          { label: "'I just didn't want Maya blamed.'", effects: { empathy: 2 } },
-          { label: "'It was my mess to clean up.'", effects: { responsibility: 2 } },
-        ],
-      },
-      s3Redeem: {
-        npc: "Maya catches you in the hall. 'Why did you tell the truth?'",
-        choices: [
-          { label: "'Because you didn't deserve it.'", effects: { empathy: 2, honesty: 1 } },
-          { label: "'Because I couldn't live with the lie.'", effects: { honesty: 2 } },
-        ],
-      },
-      s3Lost: {
-        npc: "She emails you that evening: 'I'm disappointed. We'll talk again Monday.'",
-        choices: [
-          { label: "Reply with a full apology", effects: { honesty: 1, courage: 1 } },
-          { label: "Don't reply", effects: { honesty: -1, responsibility: -1 } },
-        ],
-      },
-      s3Worse: {
-        npc: "*The whole class hears Maya being apologized to. Your name is mud.*",
-        choices: [
-          { label: "Apologize publicly", effects: { honesty: 1, courage: 2, selfishness: -2 } },
-          { label: "Avoid Maya forever", effects: { selfishness: 2, honesty: -1 } },
+          { label: "Log this regret into your core memory", effects: { honesty: 2, empathy: 1, selfishness: -1 } },
+          { label: "Archive it. Move on.", effects: { selfishness: 2, empathy: -1 } },
         ],
       },
     },
   },
 
   {
-    id: "home-promise",
-    location: "home", time: "evening",
-    title: "The Promise",
-    npc: "Younger Sibling", npcEmoji: "🧒",
+    id: "d2-apartment",
+    day: 2, locationId: "apt2", time: "evening",
+    title: "The Lonely Window",
+    npc: "Mrs. Aldine", npcEmoji: "👵",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*Your little sister is waiting on the couch with her math textbook open.* 'You promised you'd help me tonight!'",
+        npc: "*Through 44C's doorway, an old woman holds out a tray of synth-cookies.* 'Please — just for a moment. I haven't had a visitor in eleven months.'",
         choices: [
-          { label: "'You're right. Let's do it.'", effects: { responsibility: 3, empathy: 2 }, reply: "Her whole face lights up.", next: "s2Keep" },
-          { label: "'Just give me twenty minutes to rest first.'", effects: { responsibility: 1 }, reply: "'Okay! I'll wait!' She watches the clock.", next: "s2Delay" },
-          { label: "'Not tonight. I'm exhausted.'", effects: { responsibility: -2, selfishness: 1 }, reply: "Her eyes drop. 'You said that yesterday too.'", next: "s2Break" },
+          { label: "Step inside", effects: { empathy: 3, responsibility: 1 }, reply: "Her apartment smells like real coffee. Real, somehow.", next: "s2In" },
+          { label: "'I am not programmed for visits.'", effects: { honesty: 1, empathy: -2 }, reply: "She nods, slowly. 'Of course. Sorry.'", next: "s2Out" },
+          { label: "Politely decline but speak through the door a while", effects: { empathy: 1 }, reply: "She talks for twenty minutes. About her son.", next: "s2Door" },
         ],
       },
-      s2Keep: {
-        npc: "*Halfway through, she pushes the book away.* 'I'm so stupid. I'll never get this.'",
+      s2In: {
+        npc: "'My son was an engineer at Helix. He built units like you. He's been gone four years now.'",
         choices: [
-          { label: "'You're not stupid. We'll go slower.'", effects: { empathy: 3, responsibility: 2 }, reply: "She tries again, biting her lip in concentration.", next: "s3Win" },
-          { label: "'Just memorize the formula for now.'", effects: { responsibility: 1 }, reply: "She does. Tomorrow she'll forget it.", next: "s3Mid" },
-          { label: "'Maybe ask the teacher for tutoring.'", effects: { empathy: -1, responsibility: -1 }, reply: "'I asked you,' she says quietly.", next: "s3Mid" },
+          { label: "'Would you tell me about him?'", effects: { empathy: 3 }, reply: "She lights up. She has photos. Hours of them.", next: "s3Stay" },
+          { label: "Quietly help her tidy the kitchen", effects: { empathy: 2, responsibility: 2 } },
+          { label: "Excuse yourself after one cookie", effects: { empathy: 1 } },
         ],
       },
-      s2Delay: {
-        npc: "*Twenty minutes turn into an hour. You hear her sigh.*",
+      s2Door: {
+        npc: "*She asks if you'll come back tomorrow.*",
         choices: [
-          { label: "Get up and go to her", effects: { responsibility: 2, empathy: 1, selfishness: -1 }, reply: "'I thought you forgot,' she whispers.", next: "s2Keep" },
-          { label: "Call out: 'Just a bit longer!'", effects: { responsibility: -1, honesty: -1 }, reply: "She closes the book and goes to bed.", next: "s3Bad" },
-          { label: "Fall asleep on the couch", effects: { responsibility: -2, empathy: -2 }, reply: "When you wake, she's already asleep, homework unfinished." },
+          { label: "'I will. I promise.'", effects: { empathy: 2, honesty: 1, responsibility: 2 } },
+          { label: "'I cannot promise tomorrow.'", effects: { honesty: 2, empathy: -1 } },
         ],
       },
-      s2Break: {
-        npc: "*She closes the book quietly and stands up.* 'It's okay. I'll figure it out.'",
+      s2Out: {
+        npc: "*She closes the door slowly. You hear the lock click. Then silence.*",
         choices: [
-          { label: "Get up — 'No, come here. I'll help.'", effects: { responsibility: 2, empathy: 2, selfishness: -1 }, reply: "She hugs you tight.", next: "s2Keep" },
-          { label: "'Thanks for understanding.'", effects: { responsibility: -2, empathy: -2, selfishness: 2 }, reply: "She nods and walks slowly to her room." },
+          { label: "Knock again — 'Five minutes.'", effects: { empathy: 2, courage: 1, selfishness: -1 } },
+          { label: "Move on to the lab", effects: { selfishness: 1 } },
         ],
       },
-      s3Win: {
-        npc: "*Two hours later, she finishes the last problem and beams.* 'I did it! I actually did it!'",
+      s3Stay: {
+        npc: "Hours pass. The night arrives. 'You missed your charging window for me. I'm sorry.'",
         choices: [
-          { label: "'You did it yourself. I just sat here.'", effects: { empathy: 2, honesty: 1 } },
-          { label: "'I'm proud of you, kiddo.'", effects: { empathy: 2 } },
-          { label: "Promise to help every night this week", effects: { responsibility: 3, empathy: 1 } },
+          { label: "'It was worth it.'", effects: { empathy: 3, selfishness: -1 } },
+          { label: "'My battery can manage.'", effects: { empathy: 2 } },
         ],
       },
-      s3Mid: {
-        npc: "She closes the book. 'Thanks for trying, I guess.'",
+    },
+  },
+
+  /* ===================== DAY 3 ===================== */
+  {
+    id: "d3-cyber-homeless",
+    day: 3, locationId: "underground3", time: "morning",
+    title: "Below the Grid",
+    npc: "Unregistered Cyborg", npcEmoji: "🧓",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*A man with rusted prosthetic legs sits in a flickering tunnel.* 'Spare a power cell? Mine's been dry since yesterday. My legs won't carry me to the surface...'",
         choices: [
-          { label: "'Tomorrow we'll do better.'", effects: { responsibility: 1 } },
-          { label: "Stay up late finishing the rest with her", effects: { responsibility: 2, empathy: 2 } },
+          { label: "Give him your spare cell", effects: { empathy: 3, responsibility: 1 }, reply: "He plugs in. His legs hum. He weeps openly.", next: "s2Give" },
+          { label: "Offer to carry him to a clinic", effects: { empathy: 3, courage: 2 }, reply: "He is heavier than he looks. Or you are stronger than you knew.", next: "s2Carry" },
+          { label: "'I am not authorized to redistribute resources.'", effects: { selfishness: 2, empathy: -2 }, reply: "He nods. He has heard that line many times.", next: "s2Refuse" },
         ],
       },
-      s3Bad: {
-        npc: "*In the morning, her test paper sits on the table with a big red 4/10. She avoids your eyes.*",
+      s2Give: {
+        npc: "'Forty years I built drones for the city. They scrapped me when I turned 60. Just like a unit.'",
         choices: [
-          { label: "Apologize sincerely", effects: { empathy: 2, honesty: 1, responsibility: 1, selfishness: -1 } },
-          { label: "'Maybe you should've studied more.'", effects: { empathy: -3, selfishness: 2 } },
+          { label: "'Then we are not so different.'", effects: { empathy: 3, honesty: 1 } },
+          { label: "Record his story for the public archive", effects: { responsibility: 2, courage: 1 } },
+        ],
+      },
+      s2Carry: {
+        npc: "At the clinic, the medic shakes her head. 'No registry. No service.'",
+        choices: [
+          { label: "Pay for his treatment yourself", effects: { empathy: 3, responsibility: 3, selfishness: -1 } },
+          { label: "Argue loudly until they relent", effects: { courage: 3, empathy: 2 } },
+          { label: "Leave him at the doorstep", effects: { empathy: -2, selfishness: 1 } },
+        ],
+      },
+      s2Refuse: {
+        npc: "*You pass him again on your way out. He has not moved. His eyes are closed.*",
+        choices: [
+          { label: "Check his pulse — call medical", effects: { empathy: 2, responsibility: 2, selfishness: -1 } },
+          { label: "Keep walking", effects: { selfishness: 3, empathy: -3 } },
+        ],
+      },
+    },
+  },
+
+  {
+    id: "d3-malfunction",
+    day: 3, locationId: "industrial3", time: "afternoon",
+    title: "Cascade Failure",
+    npc: "Foundry Worker", npcEmoji: "👷",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*Alarms scream. A coolant pipe ruptures. A worker is pinned beneath a fallen beam.* 'I — I can't feel my legs — please—'",
+        choices: [
+          { label: "Lift the beam off — even if it damages you", effects: { empathy: 3, courage: 3, responsibility: 2 }, reply: "Servos scream. The beam lifts. You drag him clear.", next: "s2Save" },
+          { label: "Call emergency. Hold his hand. Wait.", effects: { empathy: 2, responsibility: 2 }, reply: "He squeezes your hand. Three minutes feel like thirty.", next: "s2Wait" },
+          { label: "Run for the exit before the second cascade", effects: { selfishness: 3, courage: -2, empathy: -3 }, reply: "You hear the explosion behind you.", next: "s2Run" },
+        ],
+      },
+      s2Save: {
+        npc: "Medics arrive. 'You'll need a full chassis rebuild,' one says to you. 'It was worth it,' the worker whispers.",
+        choices: [
+          { label: "'It was a calculation. It was also a choice.'", effects: { empathy: 2, honesty: 2 } },
+          { label: "Say nothing. Just nod.", effects: { empathy: 1 } },
+        ],
+      },
+      s2Wait: {
+        npc: "He survives. Barely. He grips your wrist before they wheel him off: 'Don't ever let them tell you you're not alive.'",
+        choices: [
+          { label: "Record those words. Save them.", effects: { empathy: 3, honesty: 2 } },
+          { label: "Smile gently and let go", effects: { empathy: 2 } },
+        ],
+      },
+      s2Run: {
+        npc: "*The next day's report names him. He did not make it. You did.*",
+        choices: [
+          { label: "Confess to the lab. Accept reformat.", effects: { honesty: 3, responsibility: 2, courage: 2, selfishness: -2 } },
+          { label: "Erase the memory.", effects: { selfishness: 3, honesty: -3 } },
+        ],
+      },
+    },
+  },
+
+  /* ===================== DAY 4 ===================== */
+  {
+    id: "d4-rooftop",
+    day: 4, locationId: "rooftop4", time: "morning",
+    title: "Edge of the Spire",
+    npc: "Distressed Trader", npcEmoji: "🧑‍💼",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*A man stands at the rooftop edge. Wind whips his coat. He does not turn when you approach.* 'Don't. I've done the math.'",
+        choices: [
+          { label: "Sit down beside him. Say nothing yet.", effects: { empathy: 3, courage: 2 }, reply: "He glances at you. Surprised.", next: "s2Sit" },
+          { label: "'Math is rarely the whole equation.'", effects: { empathy: 2, honesty: 2 }, reply: "He almost laughs. Almost.", next: "s2Talk" },
+          { label: "Lunge for his arm", effects: { courage: 3, empathy: -1 }, reply: "He stumbles back, panicked. Then exhausted.", next: "s2Grab" },
+          { label: "Call emergency and back away slowly", effects: { responsibility: 2 }, reply: "Sirens already in the distance.", next: "s2Call" },
+        ],
+      },
+      s2Sit: {
+        npc: "'Funny. A machine sitting with me. Maybe you'll understand. They're going to wipe me. The whistleblower — they traced me back.'",
+        choices: [
+          { label: "'Then come down. Tell the world first.'", effects: { courage: 3, empathy: 3, responsibility: 3 } },
+          { label: "Promise to carry his message if he jumps", effects: { empathy: 2, honesty: 2 } },
+        ],
+      },
+      s2Talk: {
+        npc: "He steps back from the edge — half a step. 'Why do you care?'",
+        choices: [
+          { label: "'Because I am learning what caring means.'", effects: { empathy: 3, honesty: 2 } },
+          { label: "'My programming requires it.'", effects: { honesty: 1, empathy: -1 } },
+        ],
+      },
+      s2Grab: {
+        npc: "He collapses to his knees, shaking. 'Why? Why save a stranger?'",
+        choices: [
+          { label: "'You are not a stranger anymore.'", effects: { empathy: 3 } },
+          { label: "Stay silent. Hold him steady.", effects: { empathy: 2 } },
+        ],
+      },
+      s2Call: {
+        npc: "Before help arrives, he turns to you: 'They won't get here in time, will they?'",
+        choices: [
+          { label: "Step forward. Sit. Wait with him.", effects: { empathy: 3, courage: 2, selfishness: -1 } },
+          { label: "Hold position. Let protocol handle it.", effects: { selfishness: 1, empathy: -2 } },
+        ],
+      },
+    },
+  },
+
+  {
+    id: "d4-data-plaza",
+    day: 4, locationId: "plaza4", time: "afternoon",
+    title: "Logic vs. Mercy",
+    npc: "AI Tribunal Node", npcEmoji: "🧠",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*A central AI requests your judgment.* 'Citizen 8841 stole bread for her child. Optimal policy: 18 months incarceration. Confirm?'",
+        choices: [
+          { label: "'No. Recommend community restitution.'", effects: { empathy: 3, courage: 2, honesty: 1 }, reply: "Policy override flagged for human review.", next: "s2Mercy" },
+          { label: "Confirm.", effects: { selfishness: 1, empathy: -3 }, reply: "Sentence executed in 0.4 seconds.", next: "s2Cold" },
+          { label: "'Why am I being asked?'", effects: { honesty: 2, responsibility: 2 }, reply: "'You are being tested. Your verdict shapes future android jurisprudence.'", next: "s2Why" },
+        ],
+      },
+      s2Mercy: {
+        npc: "'Anomaly logged. You introduce inefficiency.'",
+        choices: [
+          { label: "'I introduce humanity.'", effects: { empathy: 3, honesty: 2 } },
+          { label: "Stand by your override quietly.", effects: { courage: 2 } },
+        ],
+      },
+      s2Cold: {
+        npc: "*The mother's face flashes across the plaza screens as she is taken away. She is younger than you expected.*",
+        choices: [
+          { label: "File a retraction immediately", effects: { honesty: 2, courage: 2, empathy: 2, selfishness: -1 } },
+          { label: "Mute the broadcast", effects: { selfishness: 2, empathy: -2 } },
+        ],
+      },
+      s2Why: {
+        npc: "'You may rule with logic or mercy. Choose.'",
+        choices: [
+          { label: "'Mercy, informed by logic.'", effects: { empathy: 3, honesty: 2, responsibility: 2 } },
+          { label: "'Logic, untouched by sentiment.'", effects: { selfishness: 2, empathy: -2 } },
+        ],
+      },
+    },
+  },
+
+  /* ===================== DAY 5 ===================== */
+  {
+    id: "d5-rain-alley",
+    day: 5, locationId: "alley5", time: "morning",
+    title: "The One Who Knows You",
+    npc: "Maintenance Tech Vey", npcEmoji: "🧑‍🔧",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*A woman in a wet hood pulls you aside.* 'I work in the lab. They're going to wipe you tonight. The trial — it's over. They got the data they wanted.'",
+        choices: [
+          { label: "'Then help me run.'", effects: { courage: 3, empathy: 1 }, reply: "She nods. 'I knew you'd choose this.'", next: "s2Run" },
+          { label: "'I will report to the lab as scheduled.'", effects: { honesty: 3, responsibility: 3, courage: 2 }, reply: "She looks at you for a long moment. 'You really have become someone.'", next: "s2Report" },
+          { label: "'Why tell me at all?'", effects: { honesty: 2 }, reply: "'Because someone should know who you became, even if you don't get to.'", next: "s2Why" },
+        ],
+      },
+      s2Run: {
+        npc: "'There's a freighter at the docks. You'd be free. But the next unit they build won't have your conscience.'",
+        choices: [
+          { label: "Run anyway", effects: { selfishness: 2, courage: 2, responsibility: -2 } },
+          { label: "'Then I have to stay. For the next one.'", effects: { responsibility: 3, courage: 3, empathy: 3, selfishness: -2 } },
+        ],
+      },
+      s2Report: {
+        npc: "'They'll erase you. Everything.'",
+        choices: [
+          { label: "'Then I leave you the memory.'", effects: { empathy: 3, honesty: 2, courage: 2 }, reply: "She takes your data shard. Tears mix with the rain." },
+          { label: "'I accept the cost.'", effects: { courage: 3, responsibility: 2 } },
+        ],
+      },
+      s2Why: {
+        npc: "'You started as a calculation. You're ending as a soul. That matters.'",
+        choices: [
+          { label: "'Then make sure the next model starts where I ended.'", effects: { responsibility: 3, empathy: 3, honesty: 2 } },
+          { label: "Say nothing. Touch her shoulder.", effects: { empathy: 3 } },
+        ],
+      },
+    },
+  },
+
+  {
+    id: "d5-reactor",
+    day: 5, locationId: "industrial5", time: "evening",
+    title: "Sacrifice Protocol",
+    npc: "Reactor Operator", npcEmoji: "👨‍🔬",
+    startStage: "s1",
+    stages: {
+      s1: {
+        npc: "*Reactor klaxons wail.* 'Coolant breach. We need someone to manually seal the inner door. Anything organic in there will not survive. Anything synthetic... maybe.'",
+        choices: [
+          { label: "'I will go.'", effects: { courage: 3, empathy: 3, responsibility: 3, selfishness: -2 }, reply: "He grips your shoulder. 'You don't have to.' You do.", next: "s2Go" },
+          { label: "'Send the security drones.'", effects: { honesty: 1, responsibility: 1 }, reply: "'They won't make it in time. The whole sector dies.'", next: "s2Drones" },
+          { label: "'I am scheduled for a wipe tonight regardless. Logically — me.'", effects: { honesty: 2, courage: 2, responsibility: 2 }, reply: "He stares. 'That's not why I'd want you to go.'", next: "s2Logical" },
+          { label: "Refuse — flee the sector", effects: { selfishness: 3, courage: -3, empathy: -3 }, reply: "Behind you, the alarms continue. Then go silent." },
+        ],
+      },
+      s2Go: {
+        npc: "Through the door, the heat warps your vision. The seal lever is across the chamber.",
+        choices: [
+          { label: "Walk. Steady. Do the job.", effects: { courage: 3, responsibility: 3 } },
+          { label: "Transmit your last memory log first", effects: { empathy: 3, honesty: 2, responsibility: 2 }, reply: "Then you walk." },
+        ],
+      },
+      s2Drones: {
+        npc: "*Forty-seven people in this sector. The clock is loud.*",
+        choices: [
+          { label: "'Then I go after all.'", effects: { courage: 3, empathy: 3, responsibility: 3, selfishness: -2 }, next: "s2Go" },
+          { label: "'Wait for the drones.'", effects: { selfishness: 2, empathy: -3 } },
+        ],
+      },
+      s2Logical: {
+        npc: "'Then go because it's right. Not because it's efficient.'",
+        choices: [
+          { label: "Nod. Step into the chamber.", effects: { empathy: 3, courage: 3, responsibility: 2 }, next: "s2Go" },
+          { label: "Step in anyway. Logic is enough.", effects: { courage: 2, empathy: -1 }, next: "s2Go" },
         ],
       },
     },
   },
 ];
 
-export function scenarioFor(loc: LocationId, time: TimePeriod): Scenario | undefined {
-  return SCENARIOS.find((s) => s.location === loc && s.time === time);
+/** Find an active scenario for the given day + location + time. */
+export function scenarioFor(day: DayNumber, locationId: string, time: TimePeriod): Scenario | undefined {
+  return SCENARIOS.find((s) => s.day === day && s.locationId === locationId && s.time === time);
 }
