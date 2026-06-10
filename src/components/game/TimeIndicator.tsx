@@ -2,9 +2,10 @@ import { motion } from "framer-motion";
 import type { TimePeriod } from "@/game/types";
 
 const META: Record<TimePeriod, { label: string; icon: string; color: string }> = {
-  morning:   { label: "Morning",   icon: "☀", color: "oklch(0.8 0.15 70)" },
-  afternoon: { label: "Afternoon", icon: "🌤", color: "oklch(0.78 0.13 50)" },
-  evening:   { label: "Evening",   icon: "🌙", color: "oklch(0.7 0.1 280)" },
+  morning:   { label: "Morning",   icon: "☀", color: "#ffb070" },
+  afternoon: { label: "Afternoon", icon: "◐", color: "#8aa8d8" },
+  evening:   { label: "Evening",   icon: "◑", color: "#ff3a8a" },
+  night:     { label: "Night",     icon: "☾", color: "#3ce8ff" },
 };
 
 export function TimeIndicator({ time }: { time: TimePeriod }) {
@@ -14,10 +15,11 @@ export function TimeIndicator({ time }: { time: TimePeriod }) {
       key={time}
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card/80 backdrop-blur-md border border-border rounded-full px-4 py-2 flex items-center gap-2 shadow-xl"
+      className="pixel-font text-[10px] tracking-widest bg-black/70 border-2 border-cyan-400/70 px-3 py-2 flex items-center gap-2"
+      style={{ boxShadow: `0 0 16px ${m.color}55` }}
     >
-      <span className="text-xl" style={{ filter: `drop-shadow(0 0 8px ${m.color})` }}>{m.icon}</span>
-      <span className="text-sm tracking-wide text-display" style={{ color: m.color }}>{m.label}</span>
+      <span style={{ color: m.color, filter: `drop-shadow(0 0 6px ${m.color})` }}>{m.icon}</span>
+      <span style={{ color: m.color }}>{m.label.toUpperCase()}</span>
     </motion.div>
   );
 }
