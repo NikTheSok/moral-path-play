@@ -431,12 +431,13 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
 
       const p = playerRef.current;
 
-      // Time auto-derived from player x
-      const segIdx = Math.min(dayDef.locations.length - 1, Math.max(0, dayDef.locations.findIndex((l, i) => {
+      // Time auto-derived from player x — LOCKED forward only
+      const rawSegIdx = Math.min(dayDef.locations.length - 1, Math.max(0, dayDef.locations.findIndex((l, i) => {
         const nextL = dayDef.locations[i + 1];
         return !nextL || p.x < (l.x + nextL.x) / 2;
       })));
-      const segLoc = dayDef.locations[segIdx];
+      if (rawSegIdx > maxSegRef.current) maxSegRef.current = rawSegIdx;
+      const segLoc = dayDef.locations[maxSegRef.current];
       const t: TimePeriod = timeForLocation(dayRef.current, segLoc.id);
 
       // Smooth camera
