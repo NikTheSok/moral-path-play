@@ -78,6 +78,7 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
   const lastTriggeredRef = useRef<string | null>(null);
   const cinematicRef = useRef(cinematic);
   const dayRef = useRef(day);
+  const maxSegRef = useRef(0);
   const [nearLocation, setNearLocation] = useState<string | null>(null);
   const onEnterRef = useRef(onEnterLocation);
   const pausedRef = useRef(paused);
@@ -96,6 +97,7 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
     playerRef.current.x = 360;
     playerRef.current.facing = 1;
     lastTriggeredRef.current = null;
+    maxSegRef.current = 0;
     setNearLocation(null);
   }, [day]);
 
