@@ -36,12 +36,23 @@ const SLIDES = [
 export function IntroCutscene({ onComplete }: Props) {
   const [i, setI] = useState(0);
 
+  const advance = () => {
+    if (i < SLIDES.length - 1) setI(i + 1);
+    else onComplete();
+  };
+
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      if (i < SLIDES.length - 1) setI(i + 1);
-    }, 4200);
-    return () => window.clearTimeout(t);
-  }, [i]);
+    const onKey = (e: KeyboardEvent) => {
+      if (["Enter", " ", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        advance();
+      } else if (e.key === "Escape") {
+        onComplete();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }); // re-bind each render so `i` is current
 
   const slide = SLIDES[i];
   const isLast = i === SLIDES.length - 1;
