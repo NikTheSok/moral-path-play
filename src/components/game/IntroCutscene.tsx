@@ -36,12 +36,23 @@ const SLIDES = [
 export function IntroCutscene({ onComplete }: Props) {
   const [i, setI] = useState(0);
 
+  const advance = () => {
+    if (i < SLIDES.length - 1) setI(i + 1);
+    else onComplete();
+  };
+
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      if (i < SLIDES.length - 1) setI(i + 1);
-    }, 4200);
-    return () => window.clearTimeout(t);
-  }, [i]);
+    const onKey = (e: KeyboardEvent) => {
+      if (["Enter", " ", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        advance();
+      } else if (e.key === "Escape") {
+        onComplete();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }); // re-bind each render so `i` is current
 
   const slide = SLIDES[i];
   const isLast = i === SLIDES.length - 1;
@@ -130,7 +141,14 @@ export function IntroCutscene({ onComplete }: Props) {
       </div>
 
       {/* progress dots + skip/begin */}
-      <div className="relative z-10 pb-10 flex flex-col items-center gap-5">
+      <div className="relative z-10 pb-10 flex flex-col items-center gap-4">
+        <motion.div
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 1.8, repeat: Infinity }}
+          className="pixel-font text-[9px] tracking-[0.4em] text-cyan-300/80"
+        >
+          ▸ PRESS [SPACE] TO CONTINUE
+        </motion.div>
         <div className="flex gap-2">
           {SLIDES.map((_, k) => (
             <div

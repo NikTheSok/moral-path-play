@@ -78,6 +78,7 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
   const lastTriggeredRef = useRef<string | null>(null);
   const cinematicRef = useRef(cinematic);
   const dayRef = useRef(day);
+  const maxSegRef = useRef(0);
   const [nearLocation, setNearLocation] = useState<string | null>(null);
   const onEnterRef = useRef(onEnterLocation);
   const pausedRef = useRef(paused);
@@ -96,6 +97,7 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
     playerRef.current.x = 360;
     playerRef.current.facing = 1;
     lastTriggeredRef.current = null;
+    maxSegRef.current = 0;
     setNearLocation(null);
   }, [day]);
 
@@ -169,6 +171,19 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         strips: Array.from({ length: 30 }, (_, i) => ({
           x: i * 200,
           phase: (i * 0.9) % (Math.PI * 2),
+        })),
+        // Flying vehicles in the distance
+        vehicles: Array.from({ length: 6 }, (_, i) => ({
+          y: 60 + ((i * 53) % 140),
+          speed: 40 + ((i * 17) % 50),
+          phase: ((i * 1.3) % 6) * W / 3,
+          dir: (i % 2 === 0 ? 1 : -1) as 1 | -1,
+          colorIdx: i % 4,
+        })),
+        // Steam vents
+        vents: Array.from({ length: 12 }, (_, i) => ({
+          x: (i * 470 + 240) % W,
+          phase: (i * 0.6) % (Math.PI * 2),
         })),
       };
     };
@@ -416,12 +431,13 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
 
       const p = playerRef.current;
 
-      // Time auto-derived from player x
-      const segIdx = Math.min(dayDef.locations.length - 1, Math.max(0, dayDef.locations.findIndex((l, i) => {
+      // Time auto-derived from player x — LOCKED forward only
+      const rawSegIdx = Math.min(dayDef.locations.length - 1, Math.max(0, dayDef.locations.findIndex((l, i) => {
         const nextL = dayDef.locations[i + 1];
         return !nextL || p.x < (l.x + nextL.x) / 2;
       })));
-      const segLoc = dayDef.locations[segIdx];
+      if (rawSegIdx > maxSegRef.current) maxSegRef.current = rawSegIdx;
+      const segLoc = dayDef.locations[maxSegRef.current];
       const t: TimePeriod = timeForLocation(dayRef.current, segLoc.id);
 
       // Smooth camera
@@ -510,6 +526,42 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         ctx.fillStyle = gg;
         ctx.fillRect(sx - 40, bb.y - 40, bb.w + 80, 120);
       }
+
+      /* === Flying vehicles (screen-space, slow drift) === */
+      for (const v of world.vehicles) {
+        const travel = (animTime * v.speed + v.phase) % (W + 200);
+        const vx = v.dir > 0 ? travel - 100 : W - travel + 100;
+        const color = NEON_COLORS[v.colorIdx];
+        // body
+        ctx.fillStyle = "#0a0a18";
+        ctx.fillRect(vx, v.y, 22, 6);
+        ctx.fillRect(vx + 4, v.y - 2, 14, 2);
+        // headlight beam
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(v.dir > 0 ? vx + 22 : vx - 2, v.y + 1, 2, 4);
+        ctx.globalAlpha = 0.25;
+        ctx.fillRect(v.dir > 0 ? vx + 24 : vx - 14, v.y + 2, 12, 2);
+        // trail
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(v.dir > 0 ? vx - 14 : vx + 22, v.y + 2, 14, 2);
+        ctx.globalAlpha = 1;
+      }
+
+      /* === Steam vents (above ground) === */
+      for (const sv of world.vents) {
+        const sx = sv.x - camX * 0.9;
+        if (sx < -40 || sx > W + 40) continue;
+        for (let k = 0; k < 4; k++) {
+          const a = (animTime * 0.7 + sv.phase + k * 0.3) % 1;
+          ctx.fillStyle = `rgba(180,200,220,${(1 - a) * 0.25})`;
+          const sy = groundScreenY - 8 - a * 50;
+          const sz = 4 + a * 10;
+          ctx.fillRect(sx - sz / 2, sy, sz, sz);
+        }
+      }
+
 
       /* === Ground === */
       const gc = GROUND_COLOR[t];
