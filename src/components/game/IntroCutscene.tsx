@@ -141,7 +141,14 @@ export function IntroCutscene({ onComplete }: Props) {
       </div>
 
       {/* progress dots + skip/begin */}
-      <div className="relative z-10 pb-10 flex flex-col items-center gap-5">
+      <div className="relative z-10 pb-10 flex flex-col items-center gap-4">
+        <motion.div
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 1.8, repeat: Infinity }}
+          className="pixel-font text-[9px] tracking-[0.4em] text-cyan-300/80"
+        >
+          ▸ PRESS [SPACE] TO CONTINUE
+        </motion.div>
         <div className="flex gap-2">
           {SLIDES.map((_, k) => (
             <div
