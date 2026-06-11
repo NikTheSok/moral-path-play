@@ -98,6 +98,7 @@ export function Game() {
             morality={g.morality}
             isFinal={g.day >= 5}
             onContinue={g.beginNextDay}
+            onMenu={g.reset}
           />
         )}
         {g.screen === "ending" && (
