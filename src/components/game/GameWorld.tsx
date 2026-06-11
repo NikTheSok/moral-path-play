@@ -527,6 +527,42 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         ctx.fillRect(sx - 40, bb.y - 40, bb.w + 80, 120);
       }
 
+      /* === Flying vehicles (screen-space, slow drift) === */
+      for (const v of world.vehicles) {
+        const travel = (animTime * v.speed + v.phase) % (W + 200);
+        const vx = v.dir > 0 ? travel - 100 : W - travel + 100;
+        const color = NEON_COLORS[v.colorIdx];
+        // body
+        ctx.fillStyle = "#0a0a18";
+        ctx.fillRect(vx, v.y, 22, 6);
+        ctx.fillRect(vx + 4, v.y - 2, 14, 2);
+        // headlight beam
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(v.dir > 0 ? vx + 22 : vx - 2, v.y + 1, 2, 4);
+        ctx.globalAlpha = 0.25;
+        ctx.fillRect(v.dir > 0 ? vx + 24 : vx - 14, v.y + 2, 12, 2);
+        // trail
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(v.dir > 0 ? vx - 14 : vx + 22, v.y + 2, 14, 2);
+        ctx.globalAlpha = 1;
+      }
+
+      /* === Steam vents (above ground) === */
+      for (const sv of world.vents) {
+        const sx = sv.x - camX * 0.9;
+        if (sx < -40 || sx > W + 40) continue;
+        for (let k = 0; k < 4; k++) {
+          const a = (animTime * 0.7 + sv.phase + k * 0.3) % 1;
+          ctx.fillStyle = `rgba(180,200,220,${(1 - a) * 0.25})`;
+          const sy = groundScreenY - 8 - a * 50;
+          const sz = 4 + a * 10;
+          ctx.fillRect(sx - sz / 2, sy, sz, sz);
+        }
+      }
+
+
       /* === Ground === */
       const gc = GROUND_COLOR[t];
       ctx.fillStyle = gc[0];
