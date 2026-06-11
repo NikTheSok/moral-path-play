@@ -173,12 +173,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
           phase: (i * 0.9) % (Math.PI * 2),
         })),
         // Flying vehicles in the distance
-        vehicles: Array.from({ length: 5 }, (_, i) => ({
-          y: 60 + ((i * 53) % 130),
+        vehicles: Array.from({ length: 6 }, (_, i) => ({
+          y: 60 + ((i * 53) % 140),
           speed: 40 + ((i * 17) % 50),
-          phase: (i * 1.3) % 100,
-          dir: i % 2 === 0 ? 1 : -1,
-          color: NEON_COLORS_REF[i % 4],
+          phase: ((i * 1.3) % 6) * W / 3,
+          dir: (i % 2 === 0 ? 1 : -1) as 1 | -1,
+          colorIdx: i % 4,
         })),
         // Steam vents
         vents: Array.from({ length: 12 }, (_, i) => ({
@@ -187,7 +187,6 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         })),
       };
     };
-    const NEON_COLORS_REF = ["#ff3a8a", "#3ce8ff", "#a26aff", "#ffd84a"];
     let world = makeWorldData();
     let lastDay = dayRef.current;
 
