@@ -64,6 +64,8 @@ export type Screen =
   | "menu"
   | "intro"
   | "instructions"
+  | "credits"
   | "playing"
   | "charging"
   | "ending";
+

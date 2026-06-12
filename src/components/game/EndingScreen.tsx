@@ -12,11 +12,11 @@ interface Props {
 }
 
 type EndingKey =
-  | "Highly Empathetic Android"
-  | "Cold Logical Machine"
-  | "Balanced Artificial Human"
-  | "Emotionally Corrupted Robot"
-  | "Self-Sacrificing Protector";
+  | "Humanity's Hope"
+  | "Cold Machine"
+  | "Balanced Future"
+  | "Broken Mirror"
+  | "Silent Protector";
 
 interface CineConfig {
   bg: string;
@@ -25,12 +25,13 @@ interface CineConfig {
   caption: string;
 }
 const CINE: Record<EndingKey, CineConfig> = {
-  "Highly Empathetic Android":  { bg: "linear-gradient(180deg,#3a1a4a,#ff8a6a)", accent: "#ffd2a8", secondary: "#ff6aa8", caption: "the city learns to feel again" },
-  "Cold Logical Machine":       { bg: "linear-gradient(180deg,#02020a,#0a1428)", accent: "#3ce8ff", secondary: "#2a2a4a", caption: "perfect. quiet. alone." },
-  "Balanced Artificial Human":  { bg: "linear-gradient(180deg,#1a2a4a,#6aa8d8)", accent: "#a26aff", secondary: "#3ce8ff", caption: "humans and machines, walking together" },
-  "Emotionally Corrupted Robot":{ bg: "linear-gradient(180deg,#1a0010,#3a0a1a)", accent: "#ff3a3a", secondary: "#a20a3a", caption: "the lab logs you as a warning" },
-  "Self-Sacrificing Protector": { bg: "linear-gradient(180deg,#0a1a3a,#ffd84a)", accent: "#ffd84a", secondary: "#3ce8ff", caption: "they will remember a hero. not a machine." },
+  "Humanity's Hope":   { bg: "linear-gradient(180deg,#3a1a4a,#ff8a6a)", accent: "#ffd2a8", secondary: "#ff6aa8", caption: "the city learns to feel again" },
+  "Cold Machine":      { bg: "linear-gradient(180deg,#02020a,#0a1428)", accent: "#3ce8ff", secondary: "#2a2a4a", caption: "perfect. quiet. alone." },
+  "Balanced Future":   { bg: "linear-gradient(180deg,#1a2a4a,#6aa8d8)", accent: "#a26aff", secondary: "#3ce8ff", caption: "humans and machines, rebuilding together" },
+  "Broken Mirror":     { bg: "linear-gradient(180deg,#1a0010,#3a0a1a)", accent: "#ff3a3a", secondary: "#a20a3a", caption: "you reflected what they feared most" },
+  "Silent Protector":  { bg: "linear-gradient(180deg,#0a1a3a,#ffd84a)", accent: "#ffd84a", secondary: "#3ce8ff", caption: "they will remember a hero. not a machine." },
 };
+
 
 function CinematicSequence({ k }: { k: EndingKey }) {
   const cfg = CINE[k];

@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { useGameState } from "@/game/useGameState";
 import { MainMenu } from "./MainMenu";
 import { Instructions } from "./Instructions";
+import { Credits } from "./Credits";
 import { IntroCutscene } from "./IntroCutscene";
 import { ChargingScreen } from "./ChargingScreen";
 import { GameWorld } from "./GameWorld";
@@ -11,7 +12,9 @@ import { MoralityPanel } from "./MoralityPanel";
 import { TimeIndicator } from "./TimeIndicator";
 import { PauseMenu } from "./PauseMenu";
 import { EndingScreen } from "./EndingScreen";
+import { AICompanion } from "./AICompanion";
 import { DAYS } from "@/game/scenarios";
+
 
 export function Game() {
   const g = useGameState();
@@ -73,6 +76,9 @@ export function Game() {
             onContinue={g.advance}
           />
 
+          <AICompanion lastChoice={g.lastChoiceLabel} morality={g.morality} hidden={!!g.activeScenario || g.paused} />
+
+
           <PauseMenu
             open={g.paused}
             onResume={() => g.setPaused(false)}
@@ -83,11 +89,22 @@ export function Game() {
 
       <AnimatePresence mode="wait">
         {g.screen === "menu" && (
-          <MainMenu key="menu" onStart={g.startGame} onInstructions={() => g.setScreen("instructions")} />
+          <MainMenu
+            key="menu"
+            onStart={g.startGame}
+            onContinue={g.continueGame}
+            onInstructions={() => g.setScreen("instructions")}
+            onCredits={() => g.setScreen("credits")}
+            hasSave={g.hasSave}
+          />
         )}
         {g.screen === "instructions" && (
           <Instructions key="ins" onBack={() => g.setScreen("menu")} />
         )}
+        {g.screen === "credits" && (
+          <Credits key="credits" onBack={() => g.setScreen("menu")} />
+        )}
+
         {g.screen === "intro" && (
           <IntroCutscene key="intro" onComplete={g.beginPlaying} />
         )}

@@ -20,10 +20,10 @@ const PIXEL = 3;
 
 /* === Cyberpunk sky palettes === */
 const SKY: Record<TimePeriod, [string, string]> = {
-  morning:   ["#2a2554", "#d97a8f"], // smoggy dawn
-  afternoon: ["#3a4a7a", "#8aa8d8"], // hazy day
-  evening:   ["#1a0e3a", "#7a2a6a"], // neon dusk
-  night:     ["#06061a", "#1a0a3a"], // deep cyber night
+  morning:   ["#2a2554", "#d97a8f"],
+  afternoon: ["#3a4a7a", "#8aa8d8"],
+  evening:   ["#1a0e3a", "#7a2a6a"],
+  night:     ["#06061a", "#1a0a3a"],
 };
 const GROUND_COLOR: Record<TimePeriod, [string, string]> = {
   morning:   ["#22203a", "#15132a"],
@@ -31,6 +31,30 @@ const GROUND_COLOR: Record<TimePeriod, [string, string]> = {
   evening:   ["#150b2a", "#0a0518"],
   night:     ["#08081a", "#03030a"],
 };
+const TINT: Record<TimePeriod, [number, number, number, number]> = {
+  morning:   [200, 100, 160, 0.08],
+  afternoon: [255, 255, 255, 0.0],
+  evening:   [40, 10, 80, 0.28],
+  night:     [8, 4, 30, 0.45],
+};
+function hexRGB(h: string): [number, number, number] {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const SKY_RGB: Record<TimePeriod, [number, number, number, number, number, number]> = {
+  morning:   [...hexRGB(SKY.morning[0]),   ...hexRGB(SKY.morning[1])]   as [number,number,number,number,number,number],
+  afternoon: [...hexRGB(SKY.afternoon[0]), ...hexRGB(SKY.afternoon[1])] as [number,number,number,number,number,number],
+  evening:   [...hexRGB(SKY.evening[0]),   ...hexRGB(SKY.evening[1])]   as [number,number,number,number,number,number],
+  night:     [...hexRGB(SKY.night[0]),     ...hexRGB(SKY.night[1])]     as [number,number,number,number,number,number],
+};
+const GROUND_RGB: Record<TimePeriod, [number, number, number, number, number, number]> = {
+  morning:   [...hexRGB(GROUND_COLOR.morning[0]),   ...hexRGB(GROUND_COLOR.morning[1])]   as [number,number,number,number,number,number],
+  afternoon: [...hexRGB(GROUND_COLOR.afternoon[0]), ...hexRGB(GROUND_COLOR.afternoon[1])] as [number,number,number,number,number,number],
+  evening:   [...hexRGB(GROUND_COLOR.evening[0]),   ...hexRGB(GROUND_COLOR.evening[1])]   as [number,number,number,number,number,number],
+  night:     [...hexRGB(GROUND_COLOR.night[0]),     ...hexRGB(GROUND_COLOR.night[1])]     as [number,number,number,number,number,number],
+};
+const rgb = (r: number, g: number, b: number) => `rgb(${r|0},${g|0},${b|0})`;
+
 
 /* === Robot player sprite (14x20) === */
 type C = number;
@@ -126,6 +150,11 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
     let animTime = 0;
     let camTarget = 0;
     let camX = 0;
+    // smooth color state (lerped each frame toward target time palette)
+    const curSky: [number, number, number, number, number, number] = [42, 37, 84, 217, 122, 143]; // morning
+    const curGround: [number, number, number, number, number, number] = [34, 32, 58, 21, 19, 42];
+    let curTintR = 200, curTintG = 100, curTintB = 160, curTintA = 0.08;
+
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -446,13 +475,27 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
 
       const groundScreenY = Math.min(GROUND_Y, H - 120);
 
+      /* === Smoothly lerp sky/ground/tint toward target time palette === */
+      const targetSky = SKY_RGB[t];
+      const targetGround = GROUND_RGB[t];
+      const targetTint = TINT[t];
+      const lerpRate = Math.min(1, dt * 0.6); // ~1.6s to transition
+      for (let i = 0; i < 6; i++) {
+        curSky[i] += (targetSky[i] - curSky[i]) * lerpRate;
+        curGround[i] += (targetGround[i] - curGround[i]) * lerpRate;
+      }
+      curTintR += (targetTint[0] - curTintR) * lerpRate;
+      curTintG += (targetTint[1] - curTintG) * lerpRate;
+      curTintB += (targetTint[2] - curTintB) * lerpRate;
+      curTintA += (targetTint[3] - curTintA) * lerpRate;
+
       /* === Sky === */
-      const sky = SKY[t];
       const g = ctx.createLinearGradient(0, 0, 0, groundScreenY);
-      g.addColorStop(0, sky[0]);
-      g.addColorStop(1, sky[1]);
+      g.addColorStop(0, rgb(curSky[0], curSky[1], curSky[2]));
+      g.addColorStop(1, rgb(curSky[3], curSky[4], curSky[5]));
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, groundScreenY);
+
 
       // Stars / moon for night and evening
       if (t === "evening" || t === "night") {
@@ -563,12 +606,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       }
 
 
-      /* === Ground === */
-      const gc = GROUND_COLOR[t];
-      ctx.fillStyle = gc[0];
+      /* === Ground (smoothed) === */
+      ctx.fillStyle = rgb(curGround[0], curGround[1], curGround[2]);
       ctx.fillRect(0, groundScreenY, W, H - groundScreenY);
-      ctx.fillStyle = gc[1];
+      ctx.fillStyle = rgb(curGround[3], curGround[4], curGround[5]);
       ctx.fillRect(0, groundScreenY + 14, W, H - groundScreenY - 14);
+
 
       // Wet street reflection scanlines
       ctx.fillStyle = "rgba(60,232,255,0.05)";
@@ -642,17 +685,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         }
       }
 
-      /* === Time-of-day tint overlay === */
-      if (t === "night") {
-        ctx.fillStyle = "rgba(8,4,30,0.45)";
-        ctx.fillRect(0, 0, W, H);
-      } else if (t === "evening") {
-        ctx.fillStyle = "rgba(40,10,80,0.28)";
-        ctx.fillRect(0, 0, W, H);
-      } else if (t === "morning") {
-        ctx.fillStyle = "rgba(200,100,160,0.08)";
+      /* === Time-of-day tint overlay (smoothed) === */
+      if (curTintA > 0.005) {
+        ctx.fillStyle = `rgba(${curTintR|0},${curTintG|0},${curTintB|0},${curTintA.toFixed(3)})`;
         ctx.fillRect(0, 0, W, H);
       }
+
 
       // Cinematic darkening for dialogue
       if (cinematicRef.current) {
