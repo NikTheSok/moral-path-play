@@ -475,13 +475,27 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
 
       const groundScreenY = Math.min(GROUND_Y, H - 120);
 
+      /* === Smoothly lerp sky/ground/tint toward target time palette === */
+      const targetSky = SKY_RGB[t];
+      const targetGround = GROUND_RGB[t];
+      const targetTint = TINT[t];
+      const lerpRate = Math.min(1, dt * 0.6); // ~1.6s to transition
+      for (let i = 0; i < 6; i++) {
+        curSky[i] += (targetSky[i] - curSky[i]) * lerpRate;
+        curGround[i] += (targetGround[i] - curGround[i]) * lerpRate;
+      }
+      curTintR += (targetTint[0] - curTintR) * lerpRate;
+      curTintG += (targetTint[1] - curTintG) * lerpRate;
+      curTintB += (targetTint[2] - curTintB) * lerpRate;
+      curTintA += (targetTint[3] - curTintA) * lerpRate;
+
       /* === Sky === */
-      const sky = SKY[t];
       const g = ctx.createLinearGradient(0, 0, 0, groundScreenY);
-      g.addColorStop(0, sky[0]);
-      g.addColorStop(1, sky[1]);
+      g.addColorStop(0, rgb(curSky[0], curSky[1], curSky[2]));
+      g.addColorStop(1, rgb(curSky[3], curSky[4], curSky[5]));
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, groundScreenY);
+
 
       // Stars / moon for night and evening
       if (t === "evening" || t === "night") {
