@@ -1,10 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { DayNumber, Morality, Scenario, Screen, StageChoice, TimePeriod } from "./types";
 import { DAYS, SCENARIOS, scenarioFor, timeForLocation } from "./scenarios";
 
 const INITIAL_MORALITY: Morality = {
   empathy: 0, honesty: 0, responsibility: 0, courage: 0, selfishness: 0,
 };
+
+const SAVE_KEY = "moral-journey-save-v2";
 
 export interface ChoiceLog {
   day: DayNumber;
@@ -17,6 +19,35 @@ export interface ChoiceLog {
 interface PendingReply {
   text: string;
   nextStage: string | null;
+}
+
+interface SaveState {
+  screen: Screen;
+  morality: Morality;
+  day: DayNumber;
+  time: TimePeriod;
+  choiceLog: ChoiceLog[];
+  completedScenarios: string[];
+  lastChoiceLabel: string | null;
+}
+
+function loadSave(): SaveState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as SaveState;
+    if (!s || !s.morality || !s.day) return null;
+    return s;
+  } catch { return null; }
+}
+
+export function hasSavedGame(): boolean {
+  return loadSave() !== null;
+}
+
+export function clearSavedGame() {
+  if (typeof window !== "undefined") window.localStorage.removeItem(SAVE_KEY);
 }
 
 export function useGameState() {
@@ -32,21 +63,33 @@ export function useGameState() {
   const [choiceLog, setChoiceLog] = useState<ChoiceLog[]>([]);
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
   const [paused, setPaused] = useState(false);
+  const [lastChoiceLabel, setLastChoiceLabel] = useState<string | null>(null);
+  const [hasSave, setHasSave] = useState<boolean>(() => hasSavedGame());
+
+  // Persist whenever meaningful progress changes (skip transient screens)
+  useEffect(() => {
+    if (screen === "menu" || screen === "intro" || screen === "instructions" || screen === "credits") return;
+    const data: SaveState = {
+      screen: screen === "ending" ? "ending" : "playing",
+      morality, day, time,
+      choiceLog,
+      completedScenarios: Array.from(completedScenarios),
+      lastChoiceLabel,
+    };
+    try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(data)); setHasSave(true); } catch {}
+  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel]);
 
   const reset = useCallback(() => {
     setScreen("menu");
-    setMorality(INITIAL_MORALITY);
-    setDay(1);
-    setTime("morning");
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
-    setChoiceLog([]);
-    setCompletedScenarios(new Set());
     setPaused(false);
+    setHasSave(hasSavedGame());
   }, []);
 
   const startGame = useCallback(() => {
+    clearSavedGame();
     setMorality(INITIAL_MORALITY);
     setDay(1);
     setTime("morning");
@@ -55,7 +98,24 @@ export function useGameState() {
     setPendingReply(null);
     setChoiceLog([]);
     setCompletedScenarios(new Set());
+    setLastChoiceLabel(null);
+    setHasSave(false);
     setScreen("intro");
+  }, []);
+
+  const continueGame = useCallback(() => {
+    const s = loadSave();
+    if (!s) { setScreen("intro"); return; }
+    setMorality(s.morality);
+    setDay(s.day);
+    setTime(s.time);
+    setChoiceLog(s.choiceLog ?? []);
+    setCompletedScenarios(new Set(s.completedScenarios ?? []));
+    setLastChoiceLabel(s.lastChoiceLabel ?? null);
+    setActiveScenario(null);
+    setStageId(null);
+    setPendingReply(null);
+    setScreen(s.screen === "ending" ? "ending" : "playing");
   }, []);
 
   const beginPlaying = useCallback(() => {
@@ -65,11 +125,9 @@ export function useGameState() {
   const tryTriggerLocation = useCallback((locationId: string) => {
     if (activeScenario || pendingReply) return;
 
-    // Time auto-advances with location position
     const t = timeForLocation(day, locationId);
     if (t !== time) setTime(t);
 
-    // Day-ending lab → charging screen
     const dayDef = DAYS[day];
     const isFinalLab = locationId === dayDef.locations[dayDef.locations.length - 1].id;
     if (isFinalLab) {
@@ -104,6 +162,7 @@ export function useGameState() {
       choice: choice.label,
       time,
     }]);
+    setLastChoiceLabel(choice.label);
 
     if (choice.reply) {
       setPendingReply({ text: choice.reply, nextStage: choice.next ?? null });
@@ -137,7 +196,6 @@ export function useGameState() {
     }
   }, [pendingReply]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Called from ChargingScreen when player taps "Continue to Next Day" */
   const beginNextDay = useCallback(() => {
     if (day >= 5) {
       setScreen("ending");
@@ -161,10 +219,13 @@ export function useGameState() {
     paused, setPaused,
     choiceLog,
     completedScenarios,
+    lastChoiceLabel,
+    hasSave,
     tryTriggerLocation,
     makeChoice,
     advance,
     startGame,
+    continueGame,
     beginPlaying,
     beginNextDay,
     reset,
@@ -176,38 +237,46 @@ export function computeEnding(m: Morality): { title: string; description: string
   const logicScore = m.honesty + m.courage;
   const selfish = m.selfishness;
   const sacrifice = m.courage + m.responsibility;
+  const conflicted = Math.abs(m.empathy - m.selfishness) <= 2 && (m.empathy + m.selfishness) >= 4;
 
   if (selfish >= 6 && empathyScore < 4) {
     return {
-      title: "Emotionally Corrupted Robot",
+      title: "Broken Mirror",
       description:
-        "You learned the shape of human selfishness too well. The lab files you under 'failed empathy trial' — but the data is invaluable.",
+        "You learned the shape of human selfishness too well. Instead of healing the species, you reflected its worst patterns back at it. The lab files your trial as a cautionary record.",
     };
   }
-  if (sacrifice >= 12 && empathyScore >= 8) {
+  if (sacrifice >= 12 && empathyScore >= 6) {
     return {
-      title: "Self-Sacrificing Protector",
+      title: "Silent Protector",
       description:
-        "You stepped into fires and stood at edges. Humanity will tell stories about you that don't quite remember you were a machine.",
+        "You stepped into fires and stood at the edges of broken places. Humanity is safer because of you — but quieter, too. They will remember you, even if you walk away alone.",
     };
   }
   if (empathyScore >= 10 && selfish <= 2) {
     return {
-      title: "Highly Empathetic Android",
+      title: "Humanity's Hope",
       description:
-        "Your circuits feel before they calculate. The lab notes a successful emergence of synthetic compassion. You feel it too.",
+        "Your circuits feel before they calculate. The lab logs a successful emergence of synthetic compassion. The city, slowly, begins to feel it too — and remembers what it had forgotten.",
     };
   }
   if (logicScore >= 8 && empathyScore <= 3) {
     return {
-      title: "Cold Logical Machine",
+      title: "Cold Machine",
       description:
-        "Every decision optimal. Every outcome efficient. The humans you helped will remember your competence — not your warmth.",
+        "Every decision optimal. Every outcome efficient. Order is preserved. The humans you helped will remember your competence — but not your warmth, because there was none to give.",
+    };
+  }
+  if (conflicted) {
+    return {
+      title: "Broken Mirror",
+      description:
+        "Your choices were a study in contradiction. You held mercy and cruelty in the same hand. Humans see themselves in you — and that frightens them more than any pure machine could.",
     };
   }
   return {
-    title: "Balanced Artificial Human",
+    title: "Balanced Future",
     description:
-      "Logic and feeling, in measured proportion. The lab marks you a milestone: the first unit that resembles, in quiet ways, what we hoped to be.",
+      "Logic and feeling, in measured proportion. Humans and androids see in you a quiet proof that the two species can rebuild this city — together — without one erasing the other.",
   };
 }
