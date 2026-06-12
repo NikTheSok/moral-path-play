@@ -86,11 +86,22 @@ export function Game() {
 
       <AnimatePresence mode="wait">
         {g.screen === "menu" && (
-          <MainMenu key="menu" onStart={g.startGame} onInstructions={() => g.setScreen("instructions")} />
+          <MainMenu
+            key="menu"
+            onStart={g.startGame}
+            onContinue={g.continueGame}
+            onInstructions={() => g.setScreen("instructions")}
+            onCredits={() => g.setScreen("credits")}
+            hasSave={g.hasSave}
+          />
         )}
         {g.screen === "instructions" && (
           <Instructions key="ins" onBack={() => g.setScreen("menu")} />
         )}
+        {g.screen === "credits" && (
+          <Credits key="credits" onBack={() => g.setScreen("menu")} />
+        )}
+
         {g.screen === "intro" && (
           <IntroCutscene key="intro" onComplete={g.beginPlaying} />
         )}
