@@ -126,6 +126,11 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
     let animTime = 0;
     let camTarget = 0;
     let camX = 0;
+    // smooth color state (lerped each frame toward target time palette)
+    const curSky: [number, number, number, number, number, number] = [42, 37, 84, 217, 122, 143]; // morning
+    const curGround: [number, number, number, number, number, number] = [34, 32, 58, 21, 19, 42];
+    let curTintR = 200, curTintG = 100, curTintB = 160, curTintA = 0.08;
+
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
