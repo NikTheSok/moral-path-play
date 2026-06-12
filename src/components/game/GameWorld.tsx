@@ -20,10 +20,10 @@ const PIXEL = 3;
 
 /* === Cyberpunk sky palettes === */
 const SKY: Record<TimePeriod, [string, string]> = {
-  morning:   ["#2a2554", "#d97a8f"], // smoggy dawn
-  afternoon: ["#3a4a7a", "#8aa8d8"], // hazy day
-  evening:   ["#1a0e3a", "#7a2a6a"], // neon dusk
-  night:     ["#06061a", "#1a0a3a"], // deep cyber night
+  morning:   ["#2a2554", "#d97a8f"],
+  afternoon: ["#3a4a7a", "#8aa8d8"],
+  evening:   ["#1a0e3a", "#7a2a6a"],
+  night:     ["#06061a", "#1a0a3a"],
 };
 const GROUND_COLOR: Record<TimePeriod, [string, string]> = {
   morning:   ["#22203a", "#15132a"],
@@ -31,6 +31,30 @@ const GROUND_COLOR: Record<TimePeriod, [string, string]> = {
   evening:   ["#150b2a", "#0a0518"],
   night:     ["#08081a", "#03030a"],
 };
+const TINT: Record<TimePeriod, [number, number, number, number]> = {
+  morning:   [200, 100, 160, 0.08],
+  afternoon: [255, 255, 255, 0.0],
+  evening:   [40, 10, 80, 0.28],
+  night:     [8, 4, 30, 0.45],
+};
+function hexRGB(h: string): [number, number, number] {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const SKY_RGB: Record<TimePeriod, [number, number, number, number, number, number]> = {
+  morning:   [...hexRGB(SKY.morning[0]),   ...hexRGB(SKY.morning[1])]   as [number,number,number,number,number,number],
+  afternoon: [...hexRGB(SKY.afternoon[0]), ...hexRGB(SKY.afternoon[1])] as [number,number,number,number,number,number],
+  evening:   [...hexRGB(SKY.evening[0]),   ...hexRGB(SKY.evening[1])]   as [number,number,number,number,number,number],
+  night:     [...hexRGB(SKY.night[0]),     ...hexRGB(SKY.night[1])]     as [number,number,number,number,number,number],
+};
+const GROUND_RGB: Record<TimePeriod, [number, number, number, number, number, number]> = {
+  morning:   [...hexRGB(GROUND_COLOR.morning[0]),   ...hexRGB(GROUND_COLOR.morning[1])]   as [number,number,number,number,number,number],
+  afternoon: [...hexRGB(GROUND_COLOR.afternoon[0]), ...hexRGB(GROUND_COLOR.afternoon[1])] as [number,number,number,number,number,number],
+  evening:   [...hexRGB(GROUND_COLOR.evening[0]),   ...hexRGB(GROUND_COLOR.evening[1])]   as [number,number,number,number,number,number],
+  night:     [...hexRGB(GROUND_COLOR.night[0]),     ...hexRGB(GROUND_COLOR.night[1])]     as [number,number,number,number,number,number],
+};
+const rgb = (r: number, g: number, b: number) => `rgb(${r|0},${g|0},${b|0})`;
+
 
 /* === Robot player sprite (14x20) === */
 type C = number;
