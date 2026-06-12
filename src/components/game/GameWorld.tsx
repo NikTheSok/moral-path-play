@@ -606,12 +606,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       }
 
 
-      /* === Ground === */
-      const gc = GROUND_COLOR[t];
-      ctx.fillStyle = gc[0];
+      /* === Ground (smoothed) === */
+      ctx.fillStyle = rgb(curGround[0], curGround[1], curGround[2]);
       ctx.fillRect(0, groundScreenY, W, H - groundScreenY);
-      ctx.fillStyle = gc[1];
+      ctx.fillStyle = rgb(curGround[3], curGround[4], curGround[5]);
       ctx.fillRect(0, groundScreenY + 14, W, H - groundScreenY - 14);
+
 
       // Wet street reflection scanlines
       ctx.fillStyle = "rgba(60,232,255,0.05)";
@@ -685,17 +685,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         }
       }
 
-      /* === Time-of-day tint overlay === */
-      if (t === "night") {
-        ctx.fillStyle = "rgba(8,4,30,0.45)";
-        ctx.fillRect(0, 0, W, H);
-      } else if (t === "evening") {
-        ctx.fillStyle = "rgba(40,10,80,0.28)";
-        ctx.fillRect(0, 0, W, H);
-      } else if (t === "morning") {
-        ctx.fillStyle = "rgba(200,100,160,0.08)";
+      /* === Time-of-day tint overlay (smoothed) === */
+      if (curTintA > 0.005) {
+        ctx.fillStyle = `rgba(${curTintR|0},${curTintG|0},${curTintB|0},${curTintA.toFixed(3)})`;
         ctx.fillRect(0, 0, W, H);
       }
+
 
       // Cinematic darkening for dialogue
       if (cinematicRef.current) {
