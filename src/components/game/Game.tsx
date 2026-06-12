@@ -76,6 +76,9 @@ export function Game() {
             onContinue={g.advance}
           />
 
+          <AICompanion lastChoice={g.lastChoiceLabel} morality={g.morality} hidden={!!g.activeScenario || g.paused} />
+
+
           <PauseMenu
             open={g.paused}
             onResume={() => g.setPaused(false)}
