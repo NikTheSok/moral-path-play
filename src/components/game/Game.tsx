@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { useGameState } from "@/game/useGameState";
 import { MainMenu } from "./MainMenu";
 import { Instructions } from "./Instructions";
+import { Credits } from "./Credits";
 import { IntroCutscene } from "./IntroCutscene";
 import { ChargingScreen } from "./ChargingScreen";
 import { GameWorld } from "./GameWorld";
@@ -11,7 +12,9 @@ import { MoralityPanel } from "./MoralityPanel";
 import { TimeIndicator } from "./TimeIndicator";
 import { PauseMenu } from "./PauseMenu";
 import { EndingScreen } from "./EndingScreen";
+import { AICompanion } from "./AICompanion";
 import { DAYS } from "@/game/scenarios";
+
 
 export function Game() {
   const g = useGameState();

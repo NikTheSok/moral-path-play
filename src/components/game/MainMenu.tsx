@@ -2,10 +2,14 @@ import { motion } from "framer-motion";
 
 interface Props {
   onStart: () => void;
+  onContinue: () => void;
   onInstructions: () => void;
+  onCredits: () => void;
+  hasSave: boolean;
 }
 
-export function MainMenu({ onStart, onInstructions }: Props) {
+export function MainMenu({ onStart, onContinue, onInstructions, onCredits, hasSave }: Props) {
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -63,20 +67,35 @@ export function MainMenu({ onStart, onInstructions }: Props) {
           transition={{ delay: 0.3 }}
           className="mt-10 space-y-3"
         >
+          {hasSave && (
+            <button
+              onClick={onContinue}
+              className="w-full pixel-font text-[12px] tracking-widest px-6 py-4 bg-pink-400 text-black border-2 border-pink-200 hover:bg-pink-300 transition-all"
+              style={{ boxShadow: "0 0 24px rgba(255,58,138,0.7)" }}
+            >
+              ▶ CONTINUE
+            </button>
+          )}
           <button
             onClick={onStart}
             className="w-full pixel-font text-[12px] tracking-widest px-6 py-4 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300 transition-all"
             style={{ boxShadow: "0 0 24px rgba(60,232,255,0.7)" }}
           >
-            ▶ INITIATE TRIAL
+            ▶ {hasSave ? "START FROM BEGINNING" : "INITIATE TRIAL"}
           </button>
           <button
             onClick={onInstructions}
-            className="w-full pixel-font text-[10px] tracking-widest px-6 py-3 border-2 border-pink-400/70 text-pink-300 hover:bg-pink-400/10"
-            style={{ boxShadow: "0 0 14px rgba(255,58,138,0.3)" }}
+            className="w-full pixel-font text-[10px] tracking-widest px-6 py-3 border-2 border-cyan-400/70 text-cyan-300 hover:bg-cyan-400/10"
           >
-            ▶ PROTOCOL MANUAL
+            ▶ INSTRUCTIONS
           </button>
+          <button
+            onClick={onCredits}
+            className="w-full pixel-font text-[10px] tracking-widest px-6 py-3 border-2 border-pink-400/50 text-pink-300/90 hover:bg-pink-400/10"
+          >
+            ▶ CREDITS
+          </button>
+
         </motion.div>
 
         <motion.div
