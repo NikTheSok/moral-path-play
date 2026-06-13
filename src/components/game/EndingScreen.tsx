@@ -3,6 +3,7 @@ import type { Morality } from "@/game/types";
 import { computeEnding } from "@/game/useGameState";
 import type { ChoiceLog } from "@/game/useGameState";
 import { MoralityPanel } from "./MoralityPanel";
+import { RobotSprite } from "./RobotSprite";
 
 interface Props {
   morality: Morality;
@@ -82,21 +83,14 @@ function CinematicSequence({ k }: { k: EndingKey }) {
         </motion.div>
       ))}
 
-      {/* robot silhouette walking through */}
+      {/* the actual robot walking through the scene */}
       <motion.div
-        initial={{ x: -40, opacity: 0 }}
-        animate={{ x: 200, opacity: 1 }}
-        transition={{ duration: 5, delay: 0.4 }}
-        className="absolute bottom-2 w-6 h-14"
+        initial={{ x: -60, opacity: 0 }}
+        animate={{ x: 240, opacity: 1 }}
+        transition={{ duration: 6, delay: 0.4, ease: "linear" }}
+        className="absolute bottom-3"
       >
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-black"
-             style={{ clipPath: "polygon(30% 0, 70% 0, 80% 18%, 80% 50%, 95% 55%, 95% 100%, 5% 100%, 5% 55%, 20% 50%, 20% 18%)" }} />
-        <motion.div
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="absolute top-1 left-1/2 -translate-x-1/2 w-2 h-0.5"
-          style={{ background: cfg.accent, boxShadow: `0 0 6px ${cfg.accent}` }}
-        />
+        <RobotSprite scale={3} animate eyeIntensity={1} />
       </motion.div>
 
       {/* particle ambient */}
