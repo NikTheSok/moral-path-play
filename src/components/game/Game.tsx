@@ -41,6 +41,8 @@ export function Game() {
           onEnterLocation={g.tryTriggerLocation}
           blockInput={!!g.activeScenario || g.paused || g.screen !== "playing"}
           cinematic={!!g.activeScenario}
+          morality={g.morality}
+          fameLevel={g.completedScenarios.size}
         />
       )}
 
@@ -76,7 +78,12 @@ export function Game() {
             onContinue={g.advance}
           />
 
-          <AICompanion lastChoice={g.lastChoiceLabel} morality={g.morality} hidden={!!g.activeScenario || g.paused} />
+          <AICompanion
+            lastChoice={g.lastChoiceLabel}
+            morality={g.morality}
+            totalChoices={g.choiceLog.length}
+            hidden={!!g.activeScenario || g.paused}
+          />
 
 
           <PauseMenu
