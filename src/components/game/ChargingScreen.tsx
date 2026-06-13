@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import type { DayNumber, Morality } from "@/game/types";
 import { DAYS } from "@/game/scenarios";
 import { MoralityPanel } from "./MoralityPanel";
+import { RobotSprite } from "./RobotSprite";
 
 interface Props {
   day: DayNumber;
@@ -153,37 +154,29 @@ export function ChargingScreen({ day, morality, isFinal, onContinue, onMenu }: P
           ))}
         </div>
 
-        {/* capsule + robot */}
+        {/* capsule + real robot inside */}
         <div
-          className="relative w-44 h-96 border-2 overflow-hidden"
+          className="relative w-48 h-[26rem] border-2 overflow-hidden flex items-end justify-center pb-6"
           style={{
             borderColor: "#3ce8ff",
-            background: "linear-gradient(180deg, transparent, rgba(60,232,255,0.15))",
-            boxShadow: "0 0 80px rgba(60,232,255,0.55), inset 0 0 60px rgba(60,232,255,0.3)",
+            background: "linear-gradient(180deg, rgba(60,232,255,0.05), rgba(60,232,255,0.18))",
+            boxShadow: "0 0 80px rgba(60,232,255,0.55), inset 0 0 60px rgba(60,232,255,0.25)",
           }}
         >
-          {/* subtle robot bob */}
-          <motion.div
-            animate={{ y: [0, -4, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-2 left-1/2 -translate-x-1/2 w-20 h-56 bg-black/85"
-            style={{ clipPath: "polygon(30% 0, 70% 0, 80% 18%, 80% 50%, 95% 55%, 95% 100%, 5% 100%, 5% 55%, 20% 50%, 20% 18%)" }}
-          >
-            {/* visor */}
-            <motion.div
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="absolute top-[14%] left-1/2 -translate-x-1/2 w-9 h-1.5"
-              style={{ background: "#3ce8ff", boxShadow: "0 0 12px #3ce8ff" }}
-            />
-            {/* chest core */}
-            <motion.div
-              animate={{ opacity: [0.3, 0.9, 0.3] }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-              className="absolute top-[42%] left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
-              style={{ background: "#ff3a8a", boxShadow: "0 0 14px #ff3a8a" }}
-            />
-          </motion.div>
+          {/* inner scanlines */}
+          <div className="pointer-events-none absolute inset-0 opacity-40" style={{
+            backgroundImage: "repeating-linear-gradient(0deg, transparent 0 3px, rgba(60,232,255,0.15) 3px 4px)",
+          }} />
+
+          {/* hibernation tubes/cables across the top */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 flex gap-2">
+            {Array.from({ length: 5 }).map((_, k) => (
+              <span key={k} className="block w-1 h-6" style={{ background: "#3ce8ff", boxShadow: "0 0 8px #3ce8ff" }} />
+            ))}
+          </div>
+
+          {/* THE ROBOT — actual sprite, suspended in stasis */}
+          <RobotSprite scale={5} animate hibernating eyeIntensity={0.5} />
 
           {/* vertical scanning bar */}
           <motion.div
@@ -192,20 +185,18 @@ export function ChargingScreen({ day, morality, isFinal, onContinue, onMenu }: P
             className="absolute left-0 right-0 h-0.5 bg-cyan-300"
             style={{ boxShadow: "0 0 16px #3ce8ff, 0 0 6px #3ce8ff" }}
           />
-          {/* horizontal scanning bar */}
           <motion.div
             animate={{ left: ["-10%", "100%"] }}
             transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
             className="absolute top-1/2 w-px h-full bg-pink-400/70"
           />
 
-          {/* data ticks left */}
+          {/* data ticks */}
           <div className="absolute left-1 top-3 bottom-3 flex flex-col justify-between">
             {Array.from({ length: 12 }).map((_, k) => (
               <div key={k} className="w-2 h-px bg-cyan-300/60" />
             ))}
           </div>
-          {/* data ticks right */}
           <div className="absolute right-1 top-3 bottom-3 flex flex-col justify-between">
             {Array.from({ length: 12 }).map((_, k) => (
               <div key={k} className="w-2 h-px bg-pink-400/60 self-end" />

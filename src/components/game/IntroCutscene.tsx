@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
+import { RobotSprite } from "./RobotSprite";
 
 interface Props {
   onComplete: () => void;
@@ -87,29 +88,29 @@ export function IntroCutscene({ onComplete }: Props) {
         ))}
       </div>
 
-      {/* lab silhouette / holographic chamber */}
+      {/* lab silhouette / holographic chamber with the REAL robot */}
       <div className="absolute inset-0 flex items-end justify-center pb-32 pointer-events-none">
         <motion.div
           key={`chamber-${i}`}
           initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 0.5, scale: 1 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.2 }}
-          className="relative w-40 h-72"
+          className="relative w-44 h-80 flex items-end justify-center pb-3"
           style={{
             background: `linear-gradient(180deg, transparent, ${slide.tone}33)`,
             border: `2px solid ${slide.tone}`,
             boxShadow: `0 0 80px ${slide.tone}66, inset 0 0 40px ${slide.tone}33`,
           }}
         >
-          {/* robot silhouette */}
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-44 bg-black/80" style={{ clipPath: "polygon(30% 0, 70% 0, 80% 18%, 80% 50%, 95% 55%, 95% 100%, 5% 100%, 5% 55%, 20% 50%, 20% 18%)" }} />
-          {/* eye glow */}
-          <motion.div
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute top-12 left-1/2 -translate-x-1/2 w-8 h-1.5"
-            style={{ background: slide.tone, boxShadow: `0 0 10px ${slide.tone}` }}
-          />
+          {/* scan lines inside the chamber */}
+          <div className="pointer-events-none absolute inset-0 opacity-40" style={{
+            backgroundImage: "repeating-linear-gradient(0deg, transparent 0 3px, rgba(60,232,255,0.12) 3px 4px)",
+          }} />
+          {/* the robot itself */}
+          <RobotSprite scale={5} animate hibernating={i < 2} eyeIntensity={Math.min(1, 0.2 + i * 0.25)} />
+          {/* charging connectors */}
+          <span className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-1" style={{ background: slide.tone, boxShadow: `0 0 10px ${slide.tone}` }} />
+          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-1" style={{ background: slide.tone, boxShadow: `0 0 10px ${slide.tone}` }} />
         </motion.div>
       </div>
 

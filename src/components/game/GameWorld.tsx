@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { DAYS, GROUND_Y, timeForLocation } from "@/game/scenarios";
-import type { DayNumber, LocationDef, LocationKind, TimePeriod } from "@/game/types";
+import type { DayNumber, LocationDef, LocationKind, Morality, TimePeriod } from "@/game/types";
 
 interface Props {
   day: DayNumber;
@@ -10,6 +10,10 @@ interface Props {
   blockInput: boolean;
   /** When true, world is dimmed/desaturated for cinematic dialogue */
   cinematic: boolean;
+  /** Morality is read by the world to drive billboards, NPC reactions, companion */
+  morality: Morality;
+  /** How many scenarios the player has completed — drives "city recognition" */
+  fameLevel: number;
 }
 
 const SPEED = 230;
@@ -55,11 +59,9 @@ const GROUND_RGB: Record<TimePeriod, [number, number, number, number, number, nu
 };
 const rgb = (r: number, g: number, b: number) => `rgb(${r|0},${g|0},${b|0})`;
 
-
 /* === Robot player sprite (14x20) === */
 type C = number;
 const _ = 0, S = 1, M = 2, E = 3, B = 4, T = 5, A = 6, V = 7;
-// S = chrome plate, M = dark metal, E = glowing eye/cyan, B = body blue, T = trim, A = accent yellow, V = visor dark
 const ROBOT_SPRITE: C[][] = [
   [_,_,_,_,M,M,M,M,M,M,_,_,_,_],
   [_,_,_,M,S,S,S,S,S,S,M,_,_,_],
@@ -84,20 +86,38 @@ const ROBOT_SPRITE: C[][] = [
 ];
 const PALETTE: Record<C, string> = {
   0: "transparent",
-  1: "#c8d8e8",   // chrome
-  2: "#2a2440",   // dark metal
-  3: "#3ce8ff",   // cyan glow
-  4: "#3a4a8a",   // body blue
-  5: "#8a6aff",   // purple trim
-  6: "#ffd84a",   // yellow accent
-  7: "#0a0420",   // visor dark
+  1: "#c8d8e8",
+  2: "#2a2440",
+  3: "#3ce8ff",
+  4: "#3a4a8a",
+  5: "#8a6aff",
+  6: "#ffd84a",
+  7: "#0a0420",
 };
-
 const WALK_FRAMES = 2;
 
-export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cinematic }: Props) {
+/* === District flavor per day === */
+type District = "neon" | "corporate" | "underground" | "spire" | "final";
+function districtForDay(day: DayNumber): District {
+  if (day === 1) return "neon";
+  if (day === 2) return "corporate";
+  if (day === 3) return "underground";
+  if (day === 4) return "spire";
+  return "final";
+}
+
+/** Reputation: -1 (notorious) .. 0 (neutral) .. +1 (beloved) */
+function reputationScore(m: Morality): number {
+  const good = m.empathy + m.responsibility + m.courage * 0.5 + m.honesty * 0.5;
+  const bad = m.selfishness * 1.4 + Math.max(0, -m.empathy) + Math.max(0, -m.honesty);
+  const net = good - bad;
+  return Math.max(-1, Math.min(1, net / 14));
+}
+
+export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cinematic, morality, fameLevel }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playerRef = useRef({ x: 360, vx: 0, facing: 1 as 1 | -1, walking: false, bob: 0 });
+  const companionRef = useRef({ x: 280, y: GROUND_Y - 90, vx: 0, vy: 0 });
   const keysRef = useRef<Set<string>>(new Set());
   const lastTriggeredRef = useRef<string | null>(null);
   const cinematicRef = useRef(cinematic);
@@ -108,18 +128,23 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
   const pausedRef = useRef(paused);
   const blockRef = useRef(blockInput);
   const timeRef = useRef(time);
+  const moralityRef = useRef(morality);
+  const fameRef = useRef(fameLevel);
 
   useEffect(() => { onEnterRef.current = onEnterLocation; }, [onEnterLocation]);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
   useEffect(() => { blockRef.current = blockInput; }, [blockInput]);
   useEffect(() => { timeRef.current = time; }, [time]);
   useEffect(() => { cinematicRef.current = cinematic; }, [cinematic]);
+  useEffect(() => { moralityRef.current = morality; }, [morality]);
+  useEffect(() => { fameRef.current = fameLevel; }, [fameLevel]);
 
-  // Reset player position when day changes
   useEffect(() => {
     dayRef.current = day;
     playerRef.current.x = 360;
     playerRef.current.facing = 1;
+    companionRef.current.x = 280;
+    companionRef.current.y = GROUND_Y - 90;
     lastTriggeredRef.current = null;
     maxSegRef.current = 0;
     setNearLocation(null);
@@ -150,11 +175,9 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
     let animTime = 0;
     let camTarget = 0;
     let camX = 0;
-    // smooth color state (lerped each frame toward target time palette)
-    const curSky: [number, number, number, number, number, number] = [42, 37, 84, 217, 122, 143]; // morning
+    const curSky: [number, number, number, number, number, number] = [42, 37, 84, 217, 122, 143];
     const curGround: [number, number, number, number, number, number] = [34, 32, 58, 21, 19, 42];
     let curTintR = 200, curTintG = 100, curTintB = 160, curTintA = 0.08;
-
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -166,68 +189,175 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
     resize();
     window.addEventListener("resize", resize);
 
-    // Pre-generate parallax data per current world width
+    // hash for deterministic per-position variation
+    const h = (n: number) => {
+      let x = Math.sin(n * 9301 + 49297) * 233280;
+      return x - Math.floor(x);
+    };
+
+    /* ============ World generation per day ============ */
     const makeWorldData = () => {
       const W = DAYS[dayRef.current].worldW;
-      return {
-        // Distant towers — far parallax
-        towers: Array.from({ length: 40 }, (_, i) => ({
-          x: (i * 220 + (i * 37) % 100) % W,
-          h: 120 + ((i * 53) % 180),
-          w: 50 + ((i * 19) % 50),
-          color: (i % 3) as 0 | 1 | 2,
-        })),
-        // Mid-ground neon ad billboards
-        billboards: Array.from({ length: 18 }, (_, i) => ({
-          x: (i * 380 + 200) % W,
-          y: 100 + ((i * 71) % 100),
-          w: 70 + ((i * 13) % 40),
-          color: (i % 4) as 0 | 1 | 2 | 3,
-        })),
-        // Holographic floating signs
-        holos: Array.from({ length: 22 }, (_, i) => ({
-          x: (i * 290 + 150) % W,
-          y: 180 + ((i * 41) % 80),
-          phase: (i * 0.7) % (Math.PI * 2),
-        })),
-        // Rain drops
-        rain: Array.from({ length: 90 }, (_, i) => ({
-          x: (i * 71) % 1600,
-          y: (i * 53) % 800,
-          s: 0.5 + ((i * 7) % 10) / 10,
-        })),
-        // Ground neon strip flicker
-        strips: Array.from({ length: 30 }, (_, i) => ({
-          x: i * 200,
-          phase: (i * 0.9) % (Math.PI * 2),
-        })),
-        // Flying vehicles in the distance
-        vehicles: Array.from({ length: 6 }, (_, i) => ({
-          y: 60 + ((i * 53) % 140),
-          speed: 40 + ((i * 17) % 50),
-          phase: ((i * 1.3) % 6) * W / 3,
-          dir: (i % 2 === 0 ? 1 : -1) as 1 | -1,
-          colorIdx: i % 4,
-        })),
-        // Steam vents
-        vents: Array.from({ length: 12 }, (_, i) => ({
-          x: (i * 470 + 240) % W,
-          phase: (i * 0.6) % (Math.PI * 2),
-        })),
-      };
+      const dist = districtForDay(dayRef.current);
+
+      // Far parallax skyline — 3 layers, district-flavored
+      const farTowers = Array.from({ length: 60 }, (_, i) => {
+        const r = h(i + dayRef.current * 100);
+        const type = Math.floor(r * 5); // 0..4 different silhouettes
+        return {
+          x: (i * 160 + r * 80) % W,
+          h: 90 + Math.floor(r * 220),
+          w: 28 + Math.floor(h(i * 3.1) * 50),
+          type,
+        };
+      });
+
+      const midTowers = Array.from({ length: 36 }, (_, i) => {
+        const r = h(i + dayRef.current * 200 + 13);
+        const type = Math.floor(r * 6);
+        return {
+          x: (i * 240 + r * 120) % W,
+          h: 130 + Math.floor(r * 180),
+          w: 50 + Math.floor(h(i * 5.7) * 60),
+          type,
+          accent: Math.floor(h(i * 11.3) * 4),
+        };
+      });
+
+      // Mid-ground neon ad billboards (now with text variants)
+      const billboards = Array.from({ length: 22 }, (_, i) => ({
+        x: (i * 320 + 200) % W,
+        y: 80 + Math.floor(h(i * 7.2) * 110),
+        w: 90 + Math.floor(h(i * 4.4) * 40),
+        color: i % 4,
+        msgSlot: i % 6,
+      }));
+
+      // Holographic floating signs
+      const holos = Array.from({ length: 26 }, (_, i) => ({
+        x: (i * 250 + 150) % W,
+        y: 170 + Math.floor(h(i * 9.1) * 90),
+        phase: h(i * 1.7) * Math.PI * 2,
+      }));
+
+      // Rain
+      const rain = Array.from({ length: 110 }, (_, i) => ({
+        x: (i * 71) % 1600,
+        y: (i * 53) % 800,
+        s: 0.5 + (i % 10) / 10,
+      }));
+
+      // Ground neon strips
+      const strips = Array.from({ length: 40 }, (_, i) => ({
+        x: i * 170,
+        phase: h(i * 0.9) * Math.PI * 2,
+      }));
+
+      // Flying vehicles (more variety, multiple lanes)
+      const vehicles = Array.from({ length: 10 }, (_, i) => ({
+        y: 50 + Math.floor(h(i * 5.3) * 180),
+        speed: 35 + Math.floor(h(i * 2.7) * 60),
+        phase: h(i * 1.1) * 6 * W / 3,
+        dir: (i % 2 === 0 ? 1 : -1) as 1 | -1,
+        colorIdx: i % 4,
+        size: 0.7 + h(i * 3.3) * 0.8,
+      }));
+
+      // Steam vents
+      const vents = Array.from({ length: 16 }, (_, i) => ({
+        x: (i * 420 + 240) % W,
+        phase: h(i * 0.6) * Math.PI * 2,
+      }));
+
+      // Service drones — small, hover near buildings
+      const drones = Array.from({ length: 14 }, (_, i) => ({
+        cx: (i * 380 + 200) % W,
+        cy: 200 + Math.floor(h(i * 7.7) * 120),
+        radius: 30 + Math.floor(h(i * 3.1) * 40),
+        phase: h(i * 2.3) * Math.PI * 2,
+        speed: 0.6 + h(i * 5.5) * 0.8,
+        kind: i % 3, // delivery / police / civilian
+      }));
+
+      // Bridges / elevated road segments
+      const bridges = Array.from({ length: 4 }, (_, i) => ({
+        x: (i * 1400 + 600) % W,
+        w: 380 + Math.floor(h(i * 4.4) * 200),
+        y: 240 + (i % 2) * 60,
+      }));
+
+      // Maglev train rail height (constant per day) & a moving train
+      const railY = 290;
+      const train = { offset: h(dayRef.current * 13.3) * W, speed: 110 };
+
+      // Ambient pedestrian NPCs — wander along the street
+      const peds = Array.from({ length: 22 }, (_, i) => ({
+        x: (i * 280 + 400) % W,
+        speed: 12 + h(i * 1.9) * 20,
+        dir: (i % 2 === 0 ? 1 : -1) as 1 | -1,
+        skin: ["#e8b88a", "#c8967a", "#d8a888", "#a87a5a"][i % 4],
+        outfit: ["#3a2a6a", "#2a3a5a", "#4a2a3a", "#1a3a4a", "#3a3a1a"][i % 5],
+        hair: ["#1a1024", "#3a2a1a", "#5a4030", "#2a2a3a"][i % 4],
+        chatter: i % 7, // background line index
+        kind: (i % 5 === 0 ? "android" : "human") as "human" | "android",
+      }));
+
+      // Antennas & pipes on rooftops
+      const antennas = Array.from({ length: 30 }, (_, i) => ({
+        x: (i * 200 + 90) % W,
+        h: 30 + Math.floor(h(i * 6.6) * 50),
+      }));
+
+      return { farTowers, midTowers, billboards, holos, rain, strips, vehicles, vents, drones, bridges, railY, train, peds, antennas, district: dist };
     };
     let world = makeWorldData();
     let lastDay = dayRef.current;
 
-    const TOWER_COLORS = ["#0a0a1a", "#10102a", "#080814"];
     const NEON_COLORS = ["#ff3a8a", "#3ce8ff", "#a26aff", "#ffd84a"];
 
+    /* ===== Billboard message system (reactive to reputation) ===== */
+    const BILLBOARD_MSGS = {
+      positive: [
+        "ANDROID RESTORES HOPE",
+        "THE CITY'S GUARDIAN",
+        "MORALITY INDEX RISING",
+        "UNIT 7 INSPIRES CITIZENS",
+        "EMPATHY PROTOCOL: ACTIVE",
+        "A MACHINE WITH A HEART",
+      ],
+      neutral: [
+        "ANDROID ACTIVITY CONTINUES",
+        "PUBLIC OPINION DIVIDED",
+        "HELIX CORP: TRIAL IN PROGRESS",
+        "BUY NEO-NOODLES NOW",
+        "SECTOR 9 — STAY ALERT",
+        "PROJECT M.O.R.A.L. ONLINE",
+      ],
+      negative: [
+        "ANDROID UNDER INVESTIGATION",
+        "PUBLIC TRUST DECLINING",
+        "UNIT 7 — INCIDENT REVIEW",
+        "CITIZENS QUESTION HELIX",
+        "MORALITY DRIFT DETECTED",
+        "REPORT SUSPICIOUS UNITS",
+      ],
+    };
+    const billboardMessage = (slot: number): string => {
+      const r = reputationScore(moralityRef.current);
+      const bank =
+        r > 0.25 ? BILLBOARD_MSGS.positive :
+        r < -0.25 ? BILLBOARD_MSGS.negative :
+        BILLBOARD_MSGS.neutral;
+      return bank[slot % bank.length];
+    };
+
+    /* ===== Robot sprite renderer ===== */
     const drawRobotSprite = (cx: number, cy: number, facing: 1 | -1, frame: number, bob: number) => {
       ctx.save();
       const w = PLAYER_W * PIXEL;
-      const h = PLAYER_H * PIXEL;
+      const hgt = PLAYER_H * PIXEL;
       const ox = cx - w / 2;
-      const oy = cy - h + bob;
+      const oy = cy - hgt + bob;
       if (facing === -1) {
         ctx.translate(ox + w, oy);
         ctx.scale(-1, 1);
@@ -247,7 +377,6 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       }
       ctx.restore();
 
-      // Glow halo from eyes + chest
       const eyeY = oy + 4 * PIXEL;
       const glow = ctx.createRadialGradient(cx, eyeY, 1, cx, eyeY, 28);
       glow.addColorStop(0, "rgba(60,232,255,0.35)");
@@ -256,12 +385,168 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       ctx.fillRect(cx - 30, eyeY - 28, 60, 56);
     };
 
-    const drawLocation = (loc: LocationDef, baseY: number, t: TimePeriod) => {
+    /* ===== Companion drone — small floating AI orb ===== */
+    const drawCompanion = (cx: number, cy: number) => {
+      const wob = Math.sin(animTime * 2.4) * 2;
+      const y = cy + wob;
+      // glow halo
+      const g = ctx.createRadialGradient(cx, y, 1, cx, y, 30);
+      g.addColorStop(0, "rgba(255,58,138,0.45)");
+      g.addColorStop(1, "rgba(255,58,138,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - 30, y - 30, 60, 60);
+
+      // body
+      ctx.fillStyle = "#0a0420";
+      ctx.fillRect(cx - 8, y - 6, 16, 12);
+      ctx.fillStyle = "#2a2440";
+      ctx.fillRect(cx - 8, y - 6, 16, 2);
+      // visor
+      const eyeBlink = (Math.sin(animTime * 3.2) + 1) * 0.5;
+      ctx.fillStyle = `rgba(60,232,255,${0.6 + eyeBlink * 0.4})`;
+      ctx.fillRect(cx - 6, y - 3, 12, 3);
+      // side lights
+      const pulse = (Math.sin(animTime * 5) + 1) * 0.5;
+      ctx.fillStyle = `rgba(255,58,138,${0.5 + pulse * 0.5})`;
+      ctx.fillRect(cx - 10, y, 2, 2);
+      ctx.fillRect(cx + 8, y, 2, 2);
+      // thruster sparkle
+      ctx.fillStyle = "rgba(60,232,255,0.6)";
+      ctx.fillRect(cx - 1, y + 7, 2, 2 + Math.sin(animTime * 8) * 1.2);
+    };
+
+    /* ===== Background tower variants ===== */
+    const drawFarTower = (sx: number, gy: number, t: { x: number; h: number; w: number; type: number }, isDark: boolean) => {
+      const colors = ["#0a0a1a", "#10102a", "#080814", "#141022", "#0a1220"];
+      ctx.fillStyle = colors[t.type % colors.length];
+      // silhouettes vary by type
+      if (t.type === 0) {
+        // simple slab
+        ctx.fillRect(sx, gy - t.h, t.w, t.h);
+      } else if (t.type === 1) {
+        // stepped tower
+        ctx.fillRect(sx, gy - t.h, t.w, t.h);
+        ctx.fillRect(sx + 6, gy - t.h - 18, t.w - 12, 18);
+        ctx.fillRect(sx + t.w / 2 - 2, gy - t.h - 36, 4, 18);
+      } else if (t.type === 2) {
+        // pyramid top
+        ctx.fillRect(sx, gy - t.h, t.w, t.h);
+        ctx.beginPath();
+        ctx.moveTo(sx, gy - t.h);
+        ctx.lineTo(sx + t.w / 2, gy - t.h - 24);
+        ctx.lineTo(sx + t.w, gy - t.h);
+        ctx.fill();
+      } else if (t.type === 3) {
+        // double tower
+        const half = t.w / 2 - 4;
+        ctx.fillRect(sx, gy - t.h, half, t.h);
+        ctx.fillRect(sx + half + 8, gy - t.h + 14, half, t.h - 14);
+      } else {
+        // dome top
+        ctx.fillRect(sx, gy - t.h, t.w, t.h);
+        ctx.beginPath();
+        ctx.arc(sx + t.w / 2, gy - t.h, t.w / 2 - 2, Math.PI, 0);
+        ctx.fill();
+      }
+      // window grid
+      for (let yy = 6; yy < t.h - 8; yy += 9) {
+        for (let xx = 4; xx < t.w - 4; xx += 7) {
+          if ((xx * 13 + yy * 7 + t.x) % 5 < (isDark ? 3 : 1)) {
+            ctx.fillStyle = "rgba(255,220,160,0.7)";
+            ctx.fillRect(sx + xx, gy - t.h + yy, 2, 3);
+          }
+        }
+      }
+      // antenna
+      ctx.fillStyle = "rgba(60,232,255,0.4)";
+      ctx.fillRect(sx + t.w / 2 - 1, gy - t.h - 16, 2, 16);
+    };
+
+    const drawMidTower = (sx: number, gy: number, t: { x: number; h: number; w: number; type: number; accent: number }, district: District, isDark: boolean) => {
+      // base color by district
+      const districtBase: Record<District, string[]> = {
+        neon:        ["#1a0e2a", "#241638", "#180a26"],
+        corporate:   ["#0e1a2a", "#16243a", "#10202e"],
+        underground: ["#0a0a14", "#120c18", "#080812"],
+        spire:       ["#1a1432", "#241a40", "#140a28"],
+        final:       ["#0a0414", "#180a24", "#0e0820"],
+      };
+      const wall = districtBase[district][t.type % 3];
+      ctx.fillStyle = wall;
+      ctx.fillRect(sx, gy - t.h, t.w, t.h);
+
+      // district-specific silhouettes
+      if (district === "corporate") {
+        // glass tower: vertical metallic stripes + crowning hologram
+        ctx.fillStyle = "#1a3a5a";
+        for (let xx = 4; xx < t.w - 4; xx += 6) ctx.fillRect(sx + xx, gy - t.h, 2, t.h);
+        // holographic facade glow
+        ctx.globalAlpha = 0.4 + Math.sin(animTime * 1.5 + t.x) * 0.2;
+        ctx.fillStyle = "#3ce8ff";
+        ctx.fillRect(sx + 4, gy - t.h + 12, t.w - 8, 18);
+        ctx.globalAlpha = 1;
+        // crown
+        ctx.fillStyle = NEON_COLORS[t.accent];
+        ctx.fillRect(sx + t.w / 2 - 3, gy - t.h - 22, 6, 22);
+      } else if (district === "underground") {
+        // improvised: layered makeshift roofs + signs
+        for (let i = 0; i < 3; i++) {
+          ctx.fillStyle = i % 2 === 0 ? "#1a1020" : "#241432";
+          ctx.fillRect(sx - 2 + i * 2, gy - t.h - i * 6, t.w + 4 - i * 4, 6);
+        }
+        ctx.fillStyle = NEON_COLORS[t.accent];
+        ctx.fillRect(sx + 6, gy - t.h + 24, 4, t.h - 30);
+      } else if (district === "neon") {
+        // many small lit windows + giant vertical neon strip
+        ctx.fillStyle = NEON_COLORS[t.accent];
+        ctx.globalAlpha = 0.7 + Math.sin(animTime * 4 + t.x) * 0.2;
+        ctx.fillRect(sx + 4, gy - t.h + 8, 3, t.h - 16);
+        ctx.fillRect(sx + t.w - 7, gy - t.h + 8, 3, t.h - 16);
+        ctx.globalAlpha = 1;
+      } else if (district === "spire") {
+        // tall thin with antenna mast
+        ctx.fillStyle = "#3ce8ff";
+        ctx.fillRect(sx + t.w / 2 - 1, gy - t.h - 38, 2, 38);
+        ctx.fillRect(sx + t.w / 2 - 5, gy - t.h - 36, 10, 2);
+      } else {
+        // final — dark, ominous slab with red eye
+        ctx.fillStyle = "#ff3a3a";
+        ctx.globalAlpha = (Math.sin(animTime * 2 + t.x) + 1) * 0.4;
+        ctx.fillRect(sx + t.w / 2 - 4, gy - t.h + 20, 8, 4);
+        ctx.globalAlpha = 1;
+      }
+
+      // window grid (mid layer brighter)
+      const cols = Math.floor(t.w / 6);
+      const rows = Math.floor(t.h / 9);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = sx + 3 + c * 6;
+          const wy = gy - t.h + 6 + r * 9;
+          const lit = ((r * 7 + c * 13 + t.x) % 5) < (isDark ? 3 : 1);
+          if (lit) {
+            // occasional animated window (silhouette movement)
+            const flicker = (Math.sin(animTime * 3 + r * 4 + c) > 0.7) ? 0.4 : 1;
+            ctx.globalAlpha = 0.6 * flicker;
+            ctx.fillStyle = "#ffe2a8";
+            ctx.fillRect(wx, wy, 3, 4);
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+
+      // rooftop details: pipes/AC
+      ctx.fillStyle = "#1a1a2a";
+      ctx.fillRect(sx + 4, gy - t.h - 6, 12, 6);
+      ctx.fillRect(sx + t.w - 16, gy - t.h - 4, 8, 4);
+    };
+
+    /* ===== Foreground location buildings (district variants) ===== */
+    const drawLocation = (loc: LocationDef, baseY: number, t: TimePeriod, district: District) => {
       const x = loc.x;
       const kind: LocationKind = loc.kind;
       const isDark = t === "evening" || t === "night";
 
-      // Building styling per kind
       const styles: Record<LocationKind, { wall: string; trim: string; glow: string; label: string }> = {
         lab:         { wall: "#1a2440", trim: "#3ce8ff", glow: "#3ce8ff", label: "CHARGE BAY" },
         alley:       { wall: "#1a1424", trim: "#ff3a8a", glow: "#ff3a8a", label: "ALLEY" },
@@ -280,20 +565,42 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       const bx = x - bw / 2;
       const by = baseY - bh;
 
-      // Main wall
       ctx.fillStyle = pal.wall;
       ctx.fillRect(bx, by, bw, bh);
-
-      // Roof slab
       ctx.fillStyle = "#06060e";
       ctx.fillRect(bx - 6, by - 10, bw + 12, 10);
 
-      // Vertical neon pipes
+      // district-flavored facade overlay
+      if (kind === "apartment") {
+        // balconies
+        for (let r = 0; r < 3; r++) {
+          ctx.fillStyle = "#0a0816";
+          ctx.fillRect(bx + 4, by + 30 + r * 36, bw - 8, 4);
+          ctx.fillStyle = pal.trim;
+          for (let c = 0; c < 8; c++) ctx.fillRect(bx + 6 + c * 22, by + 26 + r * 36, 2, 8);
+        }
+      } else if (kind === "industrial") {
+        // chimneys + smoke
+        ctx.fillStyle = "#0a0a10";
+        ctx.fillRect(bx + 20, by - 40, 14, 40);
+        ctx.fillRect(bx + bw - 34, by - 30, 12, 30);
+        for (let k = 0; k < 3; k++) {
+          const a = (animTime * 0.5 + k * 0.4) % 1;
+          ctx.fillStyle = `rgba(80,80,90,${(1 - a) * 0.4})`;
+          ctx.fillRect(bx + 24 - a * 6, by - 40 - a * 24, 8 + a * 6, 8 + a * 4);
+        }
+      } else if (kind === "rooftop" || kind === "lab") {
+        // antenna cluster
+        ctx.fillStyle = pal.trim;
+        for (let k = 0; k < 4; k++) ctx.fillRect(bx + 20 + k * 32, by - 30 - k * 6, 2, 30 + k * 6);
+      }
+
+      // neon pipes
       ctx.fillStyle = pal.trim;
       ctx.fillRect(bx + 6, by + 6, 3, bh - 12);
       ctx.fillRect(bx + bw - 9, by + 6, 3, bh - 12);
 
-      // Windows — grid of dim/bright cells
+      // window grid
       const cols = 5, rows = 4;
       const wpad = 22, wgap = 6;
       const cellW = (bw - wpad * 2 - wgap * (cols - 1)) / cols;
@@ -308,18 +615,23 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
           if (lit) {
             ctx.fillStyle = "rgba(255,255,255,0.18)";
             ctx.fillRect(wx, wy, cellW, 2);
+            // occasional silhouette of person
+            if ((r + c + x) % 4 === 0 && Math.sin(animTime * 1.2 + x + r + c) > 0.3) {
+              ctx.fillStyle = "rgba(0,0,0,0.55)";
+              ctx.fillRect(wx + cellW / 2 - 2, wy + 4, 4, cellH - 4);
+            }
           }
         }
       }
 
-      // Door
+      // door
       ctx.fillStyle = "#02020a";
       ctx.fillRect(bx + bw / 2 - 16, by + bh - 46, 32, 46);
       ctx.fillStyle = pal.trim;
       ctx.fillRect(bx + bw / 2 - 16, by + bh - 46, 32, 3);
       ctx.fillRect(bx + bw / 2 - 16, by + bh - 4, 32, 3);
 
-      // Neon sign banner
+      // sign banner
       ctx.fillStyle = "#02020a";
       ctx.fillRect(bx + 14, by + bh - 78, bw - 28, 22);
       ctx.fillStyle = pal.trim;
@@ -328,14 +640,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       ctx.font = "bold 10px 'Press Start 2P', monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      // Sign glow flicker
       const flick = 0.7 + Math.sin(animTime * 6 + x) * 0.2 + (Math.random() < 0.02 ? -0.3 : 0);
       ctx.fillStyle = pal.trim;
       ctx.globalAlpha = flick;
       ctx.fillText(pal.label, bx + bw / 2, by + bh - 67);
       ctx.globalAlpha = 1;
 
-      // Sign halo
       if (isDark) {
         const g = ctx.createRadialGradient(x, by + bh - 67, 4, x, by + bh - 67, 90);
         g.addColorStop(0, `${pal.glow}55`);
@@ -344,9 +654,7 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         ctx.fillRect(bx - 60, by + bh - 130, bw + 120, 120);
       }
 
-      // Specialized accents
       if (kind === "lab") {
-        // Charging chamber slot — neon vertical capsule next to door
         ctx.fillStyle = "#02020a";
         ctx.fillRect(x + 30, by + bh - 90, 28, 90);
         for (let i = 0; i < 6; i++) {
@@ -355,65 +663,211 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
           ctx.fillRect(x + 34, by + bh - 84 + i * 14, 20, 4);
         }
       } else if (kind === "checkpoint") {
-        // Red beacon on top
         const a = (Math.sin(animTime * 5) + 1) * 0.5;
         ctx.fillStyle = `rgba(255,58,58,${0.5 + a * 0.5})`;
         ctx.fillRect(bx + bw / 2 - 4, by - 18, 8, 8);
       } else if (kind === "subway") {
-        // Down-arrow indicator
         ctx.fillStyle = pal.trim;
         ctx.fillRect(x - 12, by + bh - 26, 24, 4);
         ctx.fillRect(x - 8, by + bh - 22, 16, 4);
         ctx.fillRect(x - 4, by + bh - 18, 8, 4);
-      } else if (kind === "rooftop") {
-        // Antenna
-        ctx.fillStyle = pal.trim;
-        ctx.fillRect(bx + bw / 2 - 1, by - 60, 2, 60);
-        ctx.fillRect(bx + bw / 2 - 8, by - 60, 16, 2);
       }
     };
 
+    /* ===== NPC with reputation-driven reaction ===== */
     const drawNPC = (loc: LocationDef, baseY: number, t: TimePeriod) => {
-      // Human (or human-ish) NPC silhouette near door
       const x = loc.x + 70;
       const y = baseY;
       const bob = Math.floor(Math.sin(animTime * 1.5 + x) * 1) * PIXEL;
 
-      // body
       ctx.fillStyle = "#3a2a6a";
       ctx.fillRect(x - 12, y - 30 + bob, 24, 22);
-      // jacket trim
       ctx.fillStyle = "#ff3a8a";
       ctx.fillRect(x - 12, y - 30 + bob, 24, 3);
-      // head
       ctx.fillStyle = "#e8b88a";
       ctx.fillRect(x - 9, y - 48 + bob, 18, 18);
-      // hair
       ctx.fillStyle = "#1a1024";
       ctx.fillRect(x - 9, y - 48 + bob, 18, 5);
-      // visor strip
       ctx.fillStyle = "#3ce8ff";
       ctx.fillRect(x - 9, y - 40 + bob, 18, 2);
-      // legs
       ctx.fillStyle = "#181020";
       ctx.fillRect(x - 10, y - 8, 8, 8);
       ctx.fillRect(x + 2, y - 8, 8, 8);
 
-      // floating "!" interaction marker
+      // interaction marker — color depends on reputation
+      const r = reputationScore(moralityRef.current);
+      const markerColor = r > 0.25 ? "rgba(106,255,176," : r < -0.25 ? "rgba(255,90,90," : "rgba(60,232,255,";
       const pulse = (Math.sin(animTime * 4) + 1) * 0.5;
       const my = y - 70 + Math.sin(animTime * 2 + x) * 2;
-      ctx.fillStyle = `rgba(60,232,255,${0.7 + pulse * 0.3})`;
+      ctx.fillStyle = `${markerColor}${0.7 + pulse * 0.3})`;
       ctx.fillRect(x - 2, my - 4, 4, 10);
       ctx.fillRect(x - 2, my + 8, 4, 4);
 
-      // halo
       if (t === "evening" || t === "night") {
         const g = ctx.createRadialGradient(x, my, 2, x, my, 26);
-        g.addColorStop(0, "rgba(60,232,255,0.4)");
-        g.addColorStop(1, "rgba(60,232,255,0)");
+        g.addColorStop(0, `${markerColor}0.4)`);
+        g.addColorStop(1, `${markerColor}0)`);
         ctx.fillStyle = g;
         ctx.fillRect(x - 26, my - 26, 52, 52);
       }
+    };
+
+    /* ===== Ambient pedestrian (reputation-aware) ===== */
+    const drawPedestrian = (p: { x: number; speed: number; dir: 1 | -1; skin: string; outfit: string; hair: string; chatter: number; kind: "human" | "android" }, baseY: number, playerX: number) => {
+      const moveX = (animTime * p.speed * p.dir + p.x) % (DAYS[dayRef.current].worldW + 200) - 100;
+      const x = moveX;
+      const bob = Math.floor(Math.sin(animTime * 4 + p.x) * 1.2) * 2;
+      const distToPlayer = Math.abs(x - playerX);
+      const r = reputationScore(moralityRef.current);
+      const fame = fameRef.current;
+
+      // body
+      ctx.fillStyle = p.outfit;
+      ctx.fillRect(x - 7, baseY - 24 + bob, 14, 16);
+      // head
+      ctx.fillStyle = p.kind === "android" ? "#3a3a4a" : p.skin;
+      ctx.fillRect(x - 5, baseY - 36 + bob, 10, 10);
+      // hair / visor
+      if (p.kind === "android") {
+        ctx.fillStyle = "#3ce8ff";
+        ctx.fillRect(x - 5, baseY - 32 + bob, 10, 1);
+      } else {
+        ctx.fillStyle = p.hair;
+        ctx.fillRect(x - 5, baseY - 36 + bob, 10, 3);
+      }
+      // legs
+      ctx.fillStyle = "#0a0814";
+      const legPhase = Math.sin(animTime * 8 + p.x) > 0;
+      ctx.fillRect(x - 5, baseY - 8, 4, 8 + (legPhase ? 0 : -1));
+      ctx.fillRect(x + 1, baseY - 8, 4, 8 + (legPhase ? -1 : 0));
+
+      // reaction bubble when near player
+      if (distToPlayer < 90 && !cinematicRef.current) {
+        let emoji = "?";
+        let color = "#3ce8ff";
+        if (r > 0.4) { emoji = fame > 4 ? "★" : "♥"; color = "#6affb0"; }
+        else if (r > 0.1) { emoji = "·"; color = "#3ce8ff"; }
+        else if (r < -0.4) { emoji = "!"; color = "#ff5a5a"; }
+        else if (r < -0.1) { emoji = "?"; color = "#ffb05a"; }
+        const by = baseY - 50 + Math.sin(animTime * 3 + p.x) * 2;
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(x - 7, by - 8, 14, 12);
+        ctx.fillStyle = color;
+        ctx.font = "bold 10px 'Press Start 2P', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(emoji, x, by - 2);
+      }
+    };
+
+    /* ===== Service drone (background) ===== */
+    const drawServiceDrone = (cx: number, cy: number, kind: number) => {
+      const colors = ["#3ce8ff", "#ff3a3a", "#ffd84a"];
+      const col = colors[kind % 3];
+      ctx.fillStyle = "#0a0420";
+      ctx.fillRect(cx - 5, cy - 3, 10, 6);
+      ctx.fillStyle = col;
+      ctx.globalAlpha = 0.7 + Math.sin(animTime * 6 + cx) * 0.3;
+      ctx.fillRect(cx - 3, cy - 1, 6, 2);
+      ctx.globalAlpha = 1;
+      ctx.fillRect(cx - 7, cy, 2, 1);
+      ctx.fillRect(cx + 5, cy, 2, 1);
+    };
+
+    /* ===== Bridge ===== */
+    const drawBridge = (sx: number, w: number, y: number, isDark: boolean) => {
+      // deck
+      ctx.fillStyle = "#0a0a18";
+      ctx.fillRect(sx, y, w, 8);
+      // support cables
+      ctx.fillStyle = "rgba(60,232,255,0.4)";
+      for (let i = 0; i < w; i += 24) ctx.fillRect(sx + i, y - 18, 1, 18);
+      // tiny vehicles crossing
+      const vx = (animTime * 60) % w;
+      ctx.fillStyle = "#ff3a8a";
+      ctx.fillRect(sx + vx, y - 3, 6, 2);
+      ctx.fillStyle = "#3ce8ff";
+      ctx.fillRect(sx + ((vx + w / 2) % w), y - 3, 6, 2);
+      if (isDark) {
+        ctx.fillStyle = "rgba(255,210,160,0.15)";
+        ctx.fillRect(sx, y - 1, w, 1);
+      }
+    };
+
+    /* ===== Maglev train ===== */
+    const drawTrain = (railY: number, train: { offset: number; speed: number }, W: number, camX: number) => {
+      // elevated rail
+      ctx.fillStyle = "#1a1a2a";
+      ctx.fillRect(0, railY, W, 4);
+      ctx.fillStyle = "rgba(60,232,255,0.4)";
+      ctx.fillRect(0, railY - 1, W, 1);
+
+      // pylons
+      ctx.fillStyle = "#0a0a18";
+      for (let x = -((camX * 0.5) % 200); x < W; x += 200) {
+        ctx.fillRect(x, railY + 4, 6, 60);
+      }
+
+      // train (screen space — periodic pass-through)
+      const cycle = 18000; // ms-ish
+      const period = cycle / 1000;
+      const t = ((animTime + train.offset) % period) / period;
+      if (t < 0.7) {
+        const tx = -200 + t * (W + 400) * 1.4;
+        ctx.fillStyle = "#0e0e1c";
+        ctx.fillRect(tx, railY - 18, 180, 18);
+        ctx.fillStyle = "#3ce8ff";
+        ctx.fillRect(tx, railY - 18, 180, 2);
+        // windows
+        for (let i = 0; i < 8; i++) {
+          ctx.fillStyle = "rgba(255,220,160,0.85)";
+          ctx.fillRect(tx + 8 + i * 22, railY - 14, 14, 8);
+        }
+        // headlight
+        ctx.fillStyle = "rgba(60,232,255,0.7)";
+        ctx.fillRect(tx + 178, railY - 12, 8, 4);
+        // motion blur
+        ctx.fillStyle = "rgba(60,232,255,0.3)";
+        ctx.fillRect(tx - 40, railY - 8, 40, 2);
+      }
+    };
+
+    /* ===== Billboard with reactive text ===== */
+    const drawBillboard = (sx: number, bb: { x: number; y: number; w: number; color: number; msgSlot: number }, groundScreenY: number) => {
+      const color = NEON_COLORS[bb.color];
+      ctx.fillStyle = "#1a1a2a";
+      ctx.fillRect(sx + bb.w / 2 - 2, bb.y + 40, 4, groundScreenY - bb.y - 40);
+      ctx.fillStyle = "#02020a";
+      ctx.fillRect(sx, bb.y, bb.w, 40);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.85 + Math.sin(animTime * 3 + bb.x) * 0.15;
+      ctx.fillRect(sx + 3, bb.y + 3, bb.w - 6, 34);
+      ctx.globalAlpha = 1;
+
+      // dynamic message text
+      const msg = billboardMessage(bb.msgSlot);
+      ctx.font = "bold 7px 'Press Start 2P', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "rgba(0,0,0,0.85)";
+      ctx.fillText(msg, sx + bb.w / 2, bb.y + 20);
+
+      // mini robot face on left of billboard (city recognition)
+      if (bb.color === 1 || bb.color === 0) {
+        ctx.fillStyle = "#0a0420";
+        ctx.fillRect(sx + 5, bb.y + 10, 16, 20);
+        ctx.fillStyle = "#3ce8ff";
+        ctx.fillRect(sx + 7, bb.y + 16, 12, 3);
+        ctx.fillStyle = "#ff3a8a";
+        ctx.fillRect(sx + 11, bb.y + 24, 4, 2);
+      }
+
+      // halo
+      const gg = ctx.createRadialGradient(sx + bb.w / 2, bb.y + 20, 4, sx + bb.w / 2, bb.y + 20, 100);
+      gg.addColorStop(0, `${color}55`);
+      gg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(sx - 40, bb.y - 40, bb.w + 80, 140);
     };
 
     const loop = (now: number) => {
@@ -421,7 +875,6 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       last = now;
       animTime += dt;
 
-      // Regenerate world data when day changes
       if (lastDay !== dayRef.current) {
         world = makeWorldData();
         lastDay = dayRef.current;
@@ -430,6 +883,7 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       const W = canvas.clientWidth;
       const H = canvas.clientHeight;
       const dayDef = DAYS[dayRef.current];
+      const district = world.district;
 
       // Update player
       if (!pausedRef.current && !blockRef.current && !cinematicRef.current) {
@@ -443,7 +897,6 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         p.x = Math.max(60, Math.min(dayDef.worldW - 60, p.x + dx * SPEED * dt));
         p.bob = p.walking ? Math.sin(animTime * 12) * 1.5 : Math.sin(animTime * 2) * 0.5;
 
-        // Trigger nearby location
         let near: string | null = null;
         for (const loc of dayDef.locations) {
           if (Math.abs(loc.x - p.x) < TRIGGER_RADIUS) { near = loc.id; break; }
@@ -460,7 +913,17 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
 
       const p = playerRef.current;
 
-      // Time auto-derived from player x — LOCKED forward only
+      // Companion follows behind the player with spring-ish smoothing
+      const comp = companionRef.current;
+      const wantX = p.x - p.facing * 38;
+      const wantY = GROUND_Y - 78 + Math.sin(animTime * 1.8) * 4;
+      comp.vx += (wantX - comp.x) * 6 * dt;
+      comp.vy += (wantY - comp.y) * 6 * dt;
+      comp.vx *= Math.pow(0.001, dt);
+      comp.vy *= Math.pow(0.001, dt);
+      comp.x += comp.vx * dt;
+      comp.y += comp.vy * dt;
+
       const rawSegIdx = Math.min(dayDef.locations.length - 1, Math.max(0, dayDef.locations.findIndex((l, i) => {
         const nextL = dayDef.locations[i + 1];
         return !nextL || p.x < (l.x + nextL.x) / 2;
@@ -469,17 +932,16 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       const segLoc = dayDef.locations[maxSegRef.current];
       const t: TimePeriod = timeForLocation(dayRef.current, segLoc.id);
 
-      // Smooth camera
       camTarget = Math.max(0, Math.min(dayDef.worldW - W, p.x - W / 2));
       camX += (camTarget - camX) * Math.min(1, dt * 6);
 
       const groundScreenY = Math.min(GROUND_Y, H - 120);
 
-      /* === Smoothly lerp sky/ground/tint toward target time palette === */
+      // smooth lerp palettes
       const targetSky = SKY_RGB[t];
       const targetGround = GROUND_RGB[t];
       const targetTint = TINT[t];
-      const lerpRate = Math.min(1, dt * 0.6); // ~1.6s to transition
+      const lerpRate = Math.min(1, dt * 0.6);
       for (let i = 0; i < 6; i++) {
         curSky[i] += (targetSky[i] - curSky[i]) * lerpRate;
         curGround[i] += (targetGround[i] - curGround[i]) * lerpRate;
@@ -490,17 +952,18 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       curTintA += (targetTint[3] - curTintA) * lerpRate;
 
       /* === Sky === */
-      const g = ctx.createLinearGradient(0, 0, 0, groundScreenY);
-      g.addColorStop(0, rgb(curSky[0], curSky[1], curSky[2]));
-      g.addColorStop(1, rgb(curSky[3], curSky[4], curSky[5]));
-      ctx.fillStyle = g;
+      const sg = ctx.createLinearGradient(0, 0, 0, groundScreenY);
+      sg.addColorStop(0, rgb(curSky[0], curSky[1], curSky[2]));
+      sg.addColorStop(1, rgb(curSky[3], curSky[4], curSky[5]));
+      ctx.fillStyle = sg;
       ctx.fillRect(0, 0, W, groundScreenY);
 
+      const isDark = t === "evening" || t === "night";
 
-      // Stars / moon for night and evening
-      if (t === "evening" || t === "night") {
+      // Stars / moon / sun
+      if (isDark) {
         ctx.fillStyle = "rgba(255,255,255,0.7)";
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 80; i++) {
           const sx = (i * 91 + 7) % W;
           const sy = (i * 53) % (groundScreenY - 80);
           const tw = 0.4 + ((Math.sin(animTime * 2 + i) + 1) / 2) * 0.6;
@@ -508,91 +971,97 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
           ctx.fillRect(sx, sy, 2, 2);
         }
         ctx.globalAlpha = 1;
-        // Moon
         ctx.fillStyle = t === "night" ? "#e8e8ff" : "#ffd2a8";
         ctx.beginPath();
         ctx.arc(W - 110, 80, 22, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // Sun disc through smog
         ctx.fillStyle = t === "morning" ? "#ffb070" : "#ffe8a8";
         ctx.beginPath();
         ctx.arc(W - 110, 90, 24, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      /* === Background skyline (far parallax) === */
-      for (const tw of world.towers) {
-        const sx = tw.x - camX * 0.25;
+      // City glow on horizon
+      const glow = ctx.createLinearGradient(0, groundScreenY - 60, 0, groundScreenY);
+      glow.addColorStop(0, "rgba(0,0,0,0)");
+      glow.addColorStop(1, district === "underground" ? "rgba(90,58,255,0.25)" : "rgba(255,58,138,0.18)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, groundScreenY - 60, W, 60);
+
+      /* === FAR towers (deep parallax) === */
+      for (const tw of world.farTowers) {
+        const sx = tw.x - camX * 0.15;
         if (sx < -100 || sx > W + 100) continue;
-        ctx.fillStyle = TOWER_COLORS[tw.color];
-        ctx.fillRect(sx, groundScreenY - tw.h, tw.w, tw.h);
-        // window dots
-        for (let yy = 4; yy < tw.h - 10; yy += 10) {
-          for (let xx = 4; xx < tw.w - 4; xx += 8) {
-            if ((xx * 13 + yy * 7 + tw.x) % 5 < (t === "night" ? 3 : 1)) {
-              ctx.fillStyle = "rgba(255,220,160,0.7)";
-              ctx.fillRect(sx + xx, groundScreenY - tw.h + yy, 3, 4);
-            }
-          }
-        }
-        // antenna
-        ctx.fillStyle = "rgba(60,232,255,0.5)";
-        ctx.fillRect(sx + tw.w / 2 - 1, groundScreenY - tw.h - 14, 2, 14);
+        drawFarTower(sx, groundScreenY, tw, isDark);
       }
 
-      /* === Mid-ground billboards (mid parallax) === */
+      /* === Maglev train rail (deep mid) === */
+      drawTrain(world.railY, world.train, W, camX);
+
+      /* === MID towers === */
+      for (const tw of world.midTowers) {
+        const sx = tw.x - camX * 0.4;
+        if (sx < -120 || sx > W + 120) continue;
+        drawMidTower(sx, groundScreenY, tw, district, isDark);
+      }
+
+      /* === Bridges (mid parallax) === */
+      for (const b of world.bridges) {
+        const sx = b.x - camX * 0.5;
+        if (sx + b.w < -20 || sx > W + 20) continue;
+        drawBridge(sx, b.w, b.y, isDark);
+      }
+
+      /* === Antennas across roofs === */
+      for (const a of world.antennas) {
+        const sx = a.x - camX * 0.45;
+        if (sx < -10 || sx > W + 10) continue;
+        ctx.fillStyle = "rgba(60,232,255,0.5)";
+        ctx.fillRect(sx, groundScreenY - 240, 1, a.h);
+        // blinking light
+        if (Math.sin(animTime * 3 + a.x) > 0.5) {
+          ctx.fillStyle = "#ff3a3a";
+          ctx.fillRect(sx - 1, groundScreenY - 240 - 2, 3, 3);
+        }
+      }
+
+      /* === Service drones (mid parallax) === */
+      for (const d of world.drones) {
+        const cx = d.cx - camX * 0.6 + Math.cos(animTime * d.speed + d.phase) * d.radius;
+        const cy = d.cy + Math.sin(animTime * d.speed + d.phase) * 8;
+        if (cx < -20 || cx > W + 20) continue;
+        drawServiceDrone(cx, cy, d.kind);
+      }
+
+      /* === Billboards (with reactive text) === */
       for (const bb of world.billboards) {
         const sx = bb.x - camX * 0.55;
-        if (sx < -120 || sx > W + 120) continue;
-        const color = NEON_COLORS[bb.color];
-        // Pole
-        ctx.fillStyle = "#1a1a2a";
-        ctx.fillRect(sx + bb.w / 2 - 2, bb.y + 40, 4, groundScreenY - bb.y - 40);
-        // Frame
-        ctx.fillStyle = "#02020a";
-        ctx.fillRect(sx, bb.y, bb.w, 40);
-        // Sign content
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.85 + Math.sin(animTime * 3 + bb.x) * 0.15;
-        ctx.fillRect(sx + 3, bb.y + 3, bb.w - 6, 34);
-        ctx.globalAlpha = 1;
-        // Pixel "text" stripes
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        for (let i = 0; i < 4; i++) {
-          ctx.fillRect(sx + 8, bb.y + 8 + i * 7, bb.w - 16, 3);
-        }
-        // Halo
-        const gg = ctx.createRadialGradient(sx + bb.w / 2, bb.y + 20, 4, sx + bb.w / 2, bb.y + 20, 80);
-        gg.addColorStop(0, `${color}55`);
-        gg.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = gg;
-        ctx.fillRect(sx - 40, bb.y - 40, bb.w + 80, 120);
+        if (sx < -160 || sx > W + 160) continue;
+        drawBillboard(sx, bb, groundScreenY);
       }
 
-      /* === Flying vehicles (screen-space, slow drift) === */
+      /* === Flying vehicles === */
       for (const v of world.vehicles) {
         const travel = (animTime * v.speed + v.phase) % (W + 200);
         const vx = v.dir > 0 ? travel - 100 : W - travel + 100;
         const color = NEON_COLORS[v.colorIdx];
-        // body
+        const sz = v.size;
         ctx.fillStyle = "#0a0a18";
-        ctx.fillRect(vx, v.y, 22, 6);
-        ctx.fillRect(vx + 4, v.y - 2, 14, 2);
-        // headlight beam
+        ctx.fillRect(vx, v.y, 22 * sz, 6 * sz);
+        ctx.fillRect(vx + 4, v.y - 2, 14 * sz, 2);
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.9;
-        ctx.fillRect(v.dir > 0 ? vx + 22 : vx - 2, v.y + 1, 2, 4);
+        ctx.fillRect(v.dir > 0 ? vx + 22 * sz : vx - 2, v.y + 1, 2, 4);
         ctx.globalAlpha = 0.25;
-        ctx.fillRect(v.dir > 0 ? vx + 24 : vx - 14, v.y + 2, 12, 2);
-        // trail
+        ctx.fillRect(v.dir > 0 ? vx + 24 * sz : vx - 14, v.y + 2, 12, 2);
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.4;
-        ctx.fillRect(v.dir > 0 ? vx - 14 : vx + 22, v.y + 2, 14, 2);
+        ctx.fillRect(v.dir > 0 ? vx - 14 : vx + 22 * sz, v.y + 2, 14, 2);
         ctx.globalAlpha = 1;
       }
 
-      /* === Steam vents (above ground) === */
+      /* === Steam vents === */
       for (const sv of world.vents) {
         const sx = sv.x - camX * 0.9;
         if (sx < -40 || sx > W + 40) continue;
@@ -605,31 +1074,27 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         }
       }
 
-
-      /* === Ground (smoothed) === */
+      /* === Ground === */
       ctx.fillStyle = rgb(curGround[0], curGround[1], curGround[2]);
       ctx.fillRect(0, groundScreenY, W, H - groundScreenY);
       ctx.fillStyle = rgb(curGround[3], curGround[4], curGround[5]);
       ctx.fillRect(0, groundScreenY + 14, W, H - groundScreenY - 14);
 
-
-      // Wet street reflection scanlines
       ctx.fillStyle = "rgba(60,232,255,0.05)";
       for (let i = 0; i < W; i += 4) {
         ctx.fillRect(i, groundScreenY + 14 + ((i * 7) % 4), 2, 1);
       }
-      // Tile dashes
       ctx.fillStyle = "rgba(255,255,255,0.1)";
       const tileOff = Math.floor(camX) % 32;
       for (let i = -tileOff; i < W; i += 32) {
         ctx.fillRect(i, groundScreenY + 8, 16, 2);
       }
 
-      /* === World layer (translate by -camX) === */
+      /* === World layer === */
       ctx.save();
       ctx.translate(-camX, 0);
 
-      // Holographic floating signs (in world space)
+      // Holographic floating signs
       for (const ho of world.holos) {
         if (ho.x < camX - 60 || ho.x > camX + W + 60) continue;
         const float = Math.sin(animTime * 1.5 + ho.phase) * 3;
@@ -654,11 +1119,15 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       // Locations
       for (const loc of dayDef.locations) {
         if (loc.x < camX - 220 || loc.x > camX + W + 220) continue;
-        drawLocation(loc, groundScreenY, t);
-        // No NPC at lab start/end
-        if (loc.kind !== "lab") {
-          drawNPC(loc, groundScreenY, t);
-        }
+        drawLocation(loc, groundScreenY, t, district);
+        if (loc.kind !== "lab") drawNPC(loc, groundScreenY, t);
+      }
+
+      // Ambient pedestrians
+      for (const ped of world.peds) {
+        const wx = (animTime * ped.speed * ped.dir + ped.x) % (dayDef.worldW + 200) - 100;
+        if (wx < camX - 30 || wx > camX + W + 30) continue;
+        drawPedestrian(ped, groundScreenY, p.x);
       }
 
       // Player shadow
@@ -669,9 +1138,12 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       const frame = p.walking ? Math.floor(animTime * 8) % WALK_FRAMES : 0;
       drawRobotSprite(p.x, groundScreenY, p.facing, frame, p.bob);
 
+      // Companion drone (in world space)
+      drawCompanion(comp.x, comp.y);
+
       ctx.restore();
 
-      /* === Rain (screen-space, always for cyberpunk mood) === */
+      /* === Rain === */
       if (t === "evening" || t === "night" || dayRef.current >= 3) {
         ctx.strokeStyle = "rgba(140,180,220,0.35)";
         ctx.lineWidth = 1;
@@ -685,18 +1157,16 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
         }
       }
 
-      /* === Time-of-day tint overlay (smoothed) === */
+      /* === Time-of-day tint === */
       if (curTintA > 0.005) {
         ctx.fillStyle = `rgba(${curTintR|0},${curTintG|0},${curTintB|0},${curTintA.toFixed(3)})`;
         ctx.fillRect(0, 0, W, H);
       }
 
-
-      // Cinematic darkening for dialogue
+      // Cinematic
       if (cinematicRef.current) {
         ctx.fillStyle = "rgba(0,0,0,0.55)";
         ctx.fillRect(0, 0, W, H);
-        // Vignette spotlight on player
         const sx = p.x - camX;
         const grd = ctx.createRadialGradient(sx, groundScreenY - 30, 40, sx, groundScreenY - 30, 280);
         grd.addColorStop(0, "rgba(0,0,0,0)");
