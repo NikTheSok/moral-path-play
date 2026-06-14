@@ -134,6 +134,7 @@ export function useGameState() {
     const dayDef = DAYS[day];
     const isFinalLab = locationId === dayDef.locations[dayDef.locations.length - 1].id;
     if (isFinalLab) {
+      setLastChoiceLabel(null);
       setScreen("charging");
       return;
     }
