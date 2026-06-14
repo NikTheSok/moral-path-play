@@ -200,6 +200,10 @@ export function useGameState() {
   }, [pendingReply]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const beginNextDay = useCallback(() => {
+    setLastChoiceLabel(null);
+    setActiveScenario(null);
+    setStageId(null);
+    setPendingReply(null);
     if (day >= 5) {
       setScreen("ending");
       return;
