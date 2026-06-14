@@ -114,7 +114,7 @@ function reputationScore(m: Morality): number {
   return Math.max(-1, Math.min(1, net / 14));
 }
 
-export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cinematic, morality, fameLevel }: Props) {
+export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cinematic, morality, fameLevel, companionScreenRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playerRef = useRef({ x: 360, vx: 0, facing: 1 as 1 | -1, walking: false, bob: 0 });
   const companionRef = useRef({ x: 280, y: GROUND_Y - 90, vx: 0, vy: 0 });
