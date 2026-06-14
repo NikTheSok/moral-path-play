@@ -85,8 +85,11 @@ export function useGameState() {
     setStageId(null);
     setPendingReply(null);
     setPaused(false);
+    setLastChoiceLabel(null);
     setHasSave(hasSavedGame());
   }, []);
+
+  const clearLastChoice = useCallback(() => setLastChoiceLabel(null), []);
 
   const startGame = useCallback(() => {
     clearSavedGame();
@@ -131,6 +134,7 @@ export function useGameState() {
     const dayDef = DAYS[day];
     const isFinalLab = locationId === dayDef.locations[dayDef.locations.length - 1].id;
     if (isFinalLab) {
+      setLastChoiceLabel(null);
       setScreen("charging");
       return;
     }
@@ -197,6 +201,10 @@ export function useGameState() {
   }, [pendingReply]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const beginNextDay = useCallback(() => {
+    setLastChoiceLabel(null);
+    setActiveScenario(null);
+    setStageId(null);
+    setPendingReply(null);
     if (day >= 5) {
       setScreen("ending");
       return;
@@ -229,6 +237,7 @@ export function useGameState() {
     beginPlaying,
     beginNextDay,
     reset,
+    clearLastChoice,
   };
 }
 

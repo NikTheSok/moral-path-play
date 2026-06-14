@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { DAYS, GROUND_Y, timeForLocation } from "@/game/scenarios";
 import type { DayNumber, LocationDef, LocationKind, Morality, TimePeriod } from "@/game/types";
+import type { CompanionScreenPos } from "./AICompanion";
 
 interface Props {
   day: DayNumber;
@@ -8,12 +9,11 @@ interface Props {
   paused: boolean;
   onEnterLocation: (locationId: string) => void;
   blockInput: boolean;
-  /** When true, world is dimmed/desaturated for cinematic dialogue */
   cinematic: boolean;
-  /** Morality is read by the world to drive billboards, NPC reactions, companion */
   morality: Morality;
-  /** How many scenarios the player has completed — drives "city recognition" */
   fameLevel: number;
+  /** Live screen-space position of the companion drone — written to each frame. */
+  companionScreenRef?: MutableRefObject<CompanionScreenPos>;
 }
 
 const SPEED = 230;
@@ -114,7 +114,7 @@ function reputationScore(m: Morality): number {
   return Math.max(-1, Math.min(1, net / 14));
 }
 
-export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cinematic, morality, fameLevel }: Props) {
+export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cinematic, morality, fameLevel, companionScreenRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playerRef = useRef({ x: 360, vx: 0, facing: 1 as 1 | -1, walking: false, bob: 0 });
   const companionRef = useRef({ x: 280, y: GROUND_Y - 90, vx: 0, vy: 0 });
@@ -832,42 +832,101 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       }
     };
 
-    /* ===== Billboard with reactive text ===== */
+    /* ===== Billboard with framed, auto-fitted text ===== */
+    const wrapBillboardText = (msg: string, maxChars: number): string[] => {
+      const words = msg.split(/\s+/);
+      const lines: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        if (!cur.length) { cur = w; continue; }
+        if (cur.length + 1 + w.length <= maxChars) cur += " " + w;
+        else { lines.push(cur); cur = w; }
+      }
+      if (cur) lines.push(cur);
+      return lines.slice(0, 2); // hard cap at 2 lines
+    };
+
     const drawBillboard = (sx: number, bb: { x: number; y: number; w: number; color: number; msgSlot: number }, groundScreenY: number) => {
       const color = NEON_COLORS[bb.color];
+      // Larger billboard for safe text margins
+      const BW = Math.max(160, bb.w + 60);
+      const BH = 64;
+      const FRAME = 4;
+      const PAD_X = 14;
+      const PAD_Y = 8;
+      const screenX = sx - (BW - bb.w) / 2;
+
+      // pole
       ctx.fillStyle = "#1a1a2a";
-      ctx.fillRect(sx + bb.w / 2 - 2, bb.y + 40, 4, groundScreenY - bb.y - 40);
+      ctx.fillRect(screenX + BW / 2 - 3, bb.y + BH, 6, groundScreenY - bb.y - BH);
+      ctx.fillStyle = "#0a0a14";
+      ctx.fillRect(screenX + BW / 2 - 4, bb.y + BH + 2, 8, 4);
+
+      // outer frame (dark)
       ctx.fillStyle = "#02020a";
-      ctx.fillRect(sx, bb.y, bb.w, 40);
+      ctx.fillRect(screenX, bb.y, BW, BH);
+      // neon border
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.85 + Math.sin(animTime * 3 + bb.x) * 0.15;
-      ctx.fillRect(sx + 3, bb.y + 3, bb.w - 6, 34);
+      // top/bottom
+      ctx.fillRect(screenX, bb.y, BW, 2);
+      ctx.fillRect(screenX, bb.y + BH - 2, BW, 2);
+      // sides
+      ctx.fillRect(screenX, bb.y, 2, BH);
+      ctx.fillRect(screenX + BW - 2, bb.y, 2, BH);
+      // inner glow strip
+      ctx.globalAlpha = 0.18;
+      ctx.fillRect(screenX + FRAME, bb.y + FRAME, BW - FRAME * 2, BH - FRAME * 2);
       ctx.globalAlpha = 1;
 
-      // dynamic message text
+      // corner brackets
+      ctx.fillStyle = "#ffffff";
+      ctx.globalAlpha = 0.6;
+      const cb = 4;
+      ctx.fillRect(screenX + 2, bb.y + 2, cb, 1); ctx.fillRect(screenX + 2, bb.y + 2, 1, cb);
+      ctx.fillRect(screenX + BW - 2 - cb, bb.y + 2, cb, 1); ctx.fillRect(screenX + BW - 3, bb.y + 2, 1, cb);
+      ctx.fillRect(screenX + 2, bb.y + BH - 3, cb, 1); ctx.fillRect(screenX + 2, bb.y + BH - 2 - cb, 1, cb);
+      ctx.fillRect(screenX + BW - 2 - cb, bb.y + BH - 3, cb, 1); ctx.fillRect(screenX + BW - 3, bb.y + BH - 2 - cb, 1, cb);
+      ctx.globalAlpha = 1;
+
+      // scanlines on screen area
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      for (let yy = bb.y + FRAME; yy < bb.y + BH - FRAME; yy += 3) {
+        ctx.fillRect(screenX + FRAME, yy, BW - FRAME * 2, 1);
+      }
+
+      // text — auto-fit by reducing size + wrapping
       const msg = billboardMessage(bb.msgSlot);
-      ctx.font = "bold 7px 'Press Start 2P', monospace";
+      const innerW = BW - PAD_X * 2;
+      const innerH = BH - PAD_Y * 2;
+      // pick font size based on length & width
+      let fontSize = 9;
+      let maxChars = Math.floor(innerW / 6.5);
+      if (msg.length > maxChars * 2) { fontSize = 7; maxChars = Math.floor(innerW / 5.2); }
+      if (msg.length > maxChars * 2) { fontSize = 6; maxChars = Math.floor(innerW / 4.5); }
+      const lines = wrapBillboardText(msg, Math.max(6, maxChars));
+      ctx.font = `bold ${fontSize}px 'Press Start 2P', monospace`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      const lineH = fontSize + 4;
+      const totalH = lines.length * lineH;
+      const startY = bb.y + PAD_Y + (innerH - totalH) / 2 + lineH / 2;
+      // text shadow for legibility
       ctx.fillStyle = "rgba(0,0,0,0.85)";
-      ctx.fillText(msg, sx + bb.w / 2, bb.y + 20);
-
-      // mini robot face on left of billboard (city recognition)
-      if (bb.color === 1 || bb.color === 0) {
-        ctx.fillStyle = "#0a0420";
-        ctx.fillRect(sx + 5, bb.y + 10, 16, 20);
-        ctx.fillStyle = "#3ce8ff";
-        ctx.fillRect(sx + 7, bb.y + 16, 12, 3);
-        ctx.fillStyle = "#ff3a8a";
-        ctx.fillRect(sx + 11, bb.y + 24, 4, 2);
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], screenX + BW / 2 + 1, startY + li * lineH + 1);
+      }
+      ctx.fillStyle = color;
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], screenX + BW / 2, startY + li * lineH);
       }
 
       // halo
-      const gg = ctx.createRadialGradient(sx + bb.w / 2, bb.y + 20, 4, sx + bb.w / 2, bb.y + 20, 100);
-      gg.addColorStop(0, `${color}55`);
+      const gg = ctx.createRadialGradient(screenX + BW / 2, bb.y + BH / 2, 4, screenX + BW / 2, bb.y + BH / 2, 140);
+      gg.addColorStop(0, `${color}44`);
       gg.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = gg;
-      ctx.fillRect(sx - 40, bb.y - 40, bb.w + 80, 140);
+      ctx.fillRect(screenX - 50, bb.y - 50, BW + 100, BH + 100);
     };
 
     const loop = (now: number) => {
@@ -1140,6 +1199,14 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
 
       // Companion drone (in world space)
       drawCompanion(comp.x, comp.y);
+
+      // Expose companion screen-space position for UI bubble anchoring
+      if (companionScreenRef) {
+        const sx = comp.x - camX;
+        companionScreenRef.current.x = sx;
+        companionScreenRef.current.y = comp.y + Math.sin(animTime * 2.4) * 2;
+        companionScreenRef.current.visible = sx > -40 && sx < W + 40;
+      }
 
       ctx.restore();
 

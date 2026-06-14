@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
+import { HelpCircle } from "lucide-react";
 import { useGameState } from "@/game/useGameState";
 import { MainMenu } from "./MainMenu";
 import { Instructions } from "./Instructions";
@@ -12,22 +13,33 @@ import { MoralityPanel } from "./MoralityPanel";
 import { TimeIndicator } from "./TimeIndicator";
 import { PauseMenu } from "./PauseMenu";
 import { EndingScreen } from "./EndingScreen";
-import { AICompanion } from "./AICompanion";
+import { AICompanion, type CompanionScreenPos } from "./AICompanion";
+import { InfoPanel } from "./InfoPanel";
 import { DAYS } from "@/game/scenarios";
 
 
 export function Game() {
   const g = useGameState();
+  const [infoOpen, setInfoOpen] = useState(false);
+  const companionPosRef = useRef<CompanionScreenPos>({ x: -999, y: -999, visible: false });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && g.screen === "playing" && !g.activeScenario) {
-        g.setPaused((p) => !p);
+      if (e.key === "Escape") {
+        if (infoOpen) return; // InfoPanel handles its own ESC
+        if (g.screen === "playing" && !g.activeScenario) {
+          g.setPaused((p) => !p);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [g]);
+  }, [g, infoOpen]);
+
+  // Auto-close info panel when leaving gameplay
+  useEffect(() => {
+    if (g.screen !== "playing") setInfoOpen(false);
+  }, [g.screen]);
 
   const inWorld = g.screen === "playing" || g.screen === "charging";
 
@@ -43,6 +55,7 @@ export function Game() {
           cinematic={!!g.activeScenario}
           morality={g.morality}
           fameLevel={g.completedScenarios.size}
+          companionScreenRef={companionPosRef}
         />
       )}
 
@@ -56,6 +69,16 @@ export function Game() {
               DAY {g.day} · {DAYS[g.day].title.toUpperCase()}
             </div>
             <TimeIndicator time={g.time} />
+            <button
+              onClick={() => setInfoOpen(true)}
+              title="Field Manual — symbols, morality, controls"
+              className="pixel-font relative w-9 h-9 grid place-items-center bg-black/70 text-cyan-300 border-2 border-cyan-400/70 hover:bg-cyan-400/15 hover:text-pink-300 hover:border-pink-400 transition"
+              style={{ boxShadow: "0 0 14px rgba(60,232,255,0.4)" }}
+              aria-label="Open field manual"
+            >
+              <HelpCircle size={16} />
+              <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-pink-400 animate-pulse" style={{ boxShadow: "0 0 6px #ff3a8a" }} />
+            </button>
             <button
               onClick={() => g.setPaused(true)}
               className="pixel-font text-[10px] bg-cyan-400 text-black border-2 border-black px-3 py-2 shadow-[3px_3px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_0_#000]"
@@ -82,9 +105,12 @@ export function Game() {
             lastChoice={g.lastChoiceLabel}
             morality={g.morality}
             totalChoices={g.choiceLog.length}
-            hidden={!!g.activeScenario || g.paused}
+            hidden={!!g.activeScenario || g.paused || infoOpen}
+            positionRef={companionPosRef}
+            onMessageExpired={g.clearLastChoice}
           />
 
+          <InfoPanel open={infoOpen} onClose={() => setInfoOpen(false)} />
 
           <PauseMenu
             open={g.paused}
