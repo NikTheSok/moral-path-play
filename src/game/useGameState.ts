@@ -85,8 +85,11 @@ export function useGameState() {
     setStageId(null);
     setPendingReply(null);
     setPaused(false);
+    setLastChoiceLabel(null);
     setHasSave(hasSavedGame());
   }, []);
+
+  const clearLastChoice = useCallback(() => setLastChoiceLabel(null), []);
 
   const startGame = useCallback(() => {
     clearSavedGame();
