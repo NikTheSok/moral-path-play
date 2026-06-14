@@ -1200,6 +1200,14 @@ export function GameWorld({ day, time, paused, onEnterLocation, blockInput, cine
       // Companion drone (in world space)
       drawCompanion(comp.x, comp.y);
 
+      // Expose companion screen-space position for UI bubble anchoring
+      if (companionScreenRef) {
+        const sx = comp.x - camX;
+        companionScreenRef.current.x = sx;
+        companionScreenRef.current.y = comp.y + Math.sin(animTime * 2.4) * 2;
+        companionScreenRef.current.visible = sx > -40 && sx < W + 40;
+      }
+
       ctx.restore();
 
       /* === Rain === */
