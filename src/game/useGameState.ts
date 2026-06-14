@@ -237,6 +237,7 @@ export function useGameState() {
     beginPlaying,
     beginNextDay,
     reset,
+    clearLastChoice,
   };
 }
 
