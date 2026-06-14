@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { DAYS, GROUND_Y, timeForLocation } from "@/game/scenarios";
 import type { DayNumber, LocationDef, LocationKind, Morality, TimePeriod } from "@/game/types";
+import type { CompanionScreenPos } from "./AICompanion";
 
 interface Props {
   day: DayNumber;
@@ -8,12 +9,11 @@ interface Props {
   paused: boolean;
   onEnterLocation: (locationId: string) => void;
   blockInput: boolean;
-  /** When true, world is dimmed/desaturated for cinematic dialogue */
   cinematic: boolean;
-  /** Morality is read by the world to drive billboards, NPC reactions, companion */
   morality: Morality;
-  /** How many scenarios the player has completed — drives "city recognition" */
   fameLevel: number;
+  /** Live screen-space position of the companion drone — written to each frame. */
+  companionScreenRef?: MutableRefObject<CompanionScreenPos>;
 }
 
 const SPEED = 230;
