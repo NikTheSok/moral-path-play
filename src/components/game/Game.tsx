@@ -15,6 +15,7 @@ import { PauseMenu } from "./PauseMenu";
 import { EndingScreen } from "./EndingScreen";
 import { AICompanion, type CompanionScreenPos } from "./AICompanion";
 import { InfoPanel } from "./InfoPanel";
+import { InvestigationOverlay } from "./InvestigationOverlay";
 import { DAYS } from "@/game/scenarios";
 
 
