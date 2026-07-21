@@ -27,7 +27,8 @@ export function Game() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (infoOpen) return; // InfoPanel handles its own ESC
+        if (infoOpen) return;
+        if (g.activeInvestigation) return; // overlay owns its own close
         if (g.screen === "playing" && !g.activeScenario) {
           g.setPaused((p) => !p);
         }
