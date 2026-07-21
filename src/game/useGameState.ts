@@ -239,6 +239,8 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     if (day >= 5) {
       setScreen("ending");
       return;
