@@ -132,7 +132,7 @@ export function useGameState() {
   }, []);
 
   const tryTriggerLocation = useCallback((locationId: string) => {
-    if (activeScenario || pendingReply) return;
+    if (activeScenario || pendingReply || activeInvestigationId) return;
 
     const t = timeForLocation(day, locationId);
     if (t !== time) setTime(t);
@@ -147,10 +147,31 @@ export function useGameState() {
 
     const s = scenarioFor(day, locationId, t);
     if (s && !completedScenarios.has(s.id)) {
-      setActiveScenario(s);
-      setStageId(s.startStage);
+      const inv = investigationFor(s.id);
+      if (inv) {
+        // Gate the scenario behind an investigation.
+        setPendingScenario(s);
+        setActiveInvestigationId(s.id);
+      } else {
+        setActiveScenario(s);
+        setStageId(s.startStage);
+      }
     }
-  }, [activeScenario, pendingReply, day, time, completedScenarios]);
+  }, [activeScenario, pendingReply, activeInvestigationId, day, time, completedScenarios]);
+
+  const completeInvestigation = useCallback(() => {
+    if (!pendingScenario) { setActiveInvestigationId(null); return; }
+    setActiveScenario(pendingScenario);
+    setStageId(pendingScenario.startStage);
+    setPendingScenario(null);
+    setActiveInvestigationId(null);
+  }, [pendingScenario]);
+
+  const abortInvestigation = useCallback(() => {
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
+  }, []);
+
 
   const makeChoice = useCallback((choice: StageChoice) => {
     if (!activeScenario) return;
