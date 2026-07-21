@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DayNumber, Morality, Scenario, Screen, StageChoice, TimePeriod } from "./types";
 import { DAYS, SCENARIOS, scenarioFor, timeForLocation } from "./scenarios";
+import { investigationFor } from "./investigation";
 
 const INITIAL_MORALITY: Morality = {
   empathy: 0, honesty: 0, responsibility: 0, courage: 0, selfishness: 0,
@@ -59,6 +60,11 @@ export function useGameState() {
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [stageId, setStageId] = useState<string | null>(null);
   const [pendingReply, setPendingReply] = useState<PendingReply | null>(null);
+  /** scenarioId of an in-progress pre-scenario investigation, or null */
+  const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(null);
+  /** pending scenario that will open once the investigation completes */
+  const [pendingScenario, setPendingScenario] = useState<Scenario | null>(null);
+
 
   const [choiceLog, setChoiceLog] = useState<ChoiceLog[]>([]);
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
