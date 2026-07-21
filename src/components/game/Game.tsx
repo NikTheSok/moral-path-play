@@ -15,6 +15,7 @@ import { PauseMenu } from "./PauseMenu";
 import { EndingScreen } from "./EndingScreen";
 import { AICompanion, type CompanionScreenPos } from "./AICompanion";
 import { InfoPanel } from "./InfoPanel";
+import { InvestigationOverlay } from "./InvestigationOverlay";
 import { DAYS } from "@/game/scenarios";
 
 
@@ -26,7 +27,8 @@ export function Game() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (infoOpen) return; // InfoPanel handles its own ESC
+        if (infoOpen) return;
+        if (g.activeInvestigation) return; // overlay owns its own close
         if (g.screen === "playing" && !g.activeScenario) {
           g.setPaused((p) => !p);
         }
@@ -51,8 +53,8 @@ export function Game() {
           time={g.time}
           paused={g.paused}
           onEnterLocation={g.tryTriggerLocation}
-          blockInput={!!g.activeScenario || g.paused || g.screen !== "playing"}
-          cinematic={!!g.activeScenario}
+          blockInput={!!g.activeScenario || !!g.activeInvestigation || g.paused || g.screen !== "playing"}
+          cinematic={!!g.activeScenario || !!g.activeInvestigation}
           morality={g.morality}
           fameLevel={g.completedScenarios.size}
           companionScreenRef={companionPosRef}
@@ -87,7 +89,7 @@ export function Game() {
             </button>
           </div>
 
-          {!g.activeScenario && (
+          {!g.activeScenario && !g.activeInvestigation && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pixel-font text-[10px] text-cyan-300 bg-black/80 border-2 border-cyan-400/60 px-3 py-1.5" style={{ boxShadow: "0 0 12px rgba(60,232,255,0.3)" }}>
               ◄ A / D ► · WALK FORWARD TO MEET HUMANS
             </div>
@@ -101,16 +103,28 @@ export function Game() {
             onContinue={g.advance}
           />
 
+          <AnimatePresence>
+            {g.activeInvestigation && (
+              <InvestigationOverlay
+                key={g.activeInvestigation.scenarioId}
+                investigation={g.activeInvestigation}
+                onComplete={g.completeInvestigation}
+                onAbort={g.abortInvestigation}
+              />
+            )}
+          </AnimatePresence>
+
           <AICompanion
             lastChoice={g.lastChoiceLabel}
             morality={g.morality}
             totalChoices={g.choiceLog.length}
-            hidden={!!g.activeScenario || g.paused || infoOpen}
+            hidden={!!g.activeScenario || !!g.activeInvestigation || g.paused || infoOpen}
             positionRef={companionPosRef}
             onMessageExpired={g.clearLastChoice}
           />
 
           <InfoPanel open={infoOpen} onClose={() => setInfoOpen(false)} />
+
 
           <PauseMenu
             open={g.paused}

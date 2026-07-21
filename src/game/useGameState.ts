@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DayNumber, Morality, Scenario, Screen, StageChoice, TimePeriod } from "./types";
 import { DAYS, SCENARIOS, scenarioFor, timeForLocation } from "./scenarios";
+import { investigationFor } from "./investigation";
 
 const INITIAL_MORALITY: Morality = {
   empathy: 0, honesty: 0, responsibility: 0, courage: 0, selfishness: 0,
@@ -59,6 +60,11 @@ export function useGameState() {
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [stageId, setStageId] = useState<string | null>(null);
   const [pendingReply, setPendingReply] = useState<PendingReply | null>(null);
+  /** scenarioId of an in-progress pre-scenario investigation, or null */
+  const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(null);
+  /** pending scenario that will open once the investigation completes */
+  const [pendingScenario, setPendingScenario] = useState<Scenario | null>(null);
+
 
   const [choiceLog, setChoiceLog] = useState<ChoiceLog[]>([]);
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
@@ -84,10 +90,13 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     setPaused(false);
     setLastChoiceLabel(null);
     setHasSave(hasSavedGame());
   }, []);
+
 
   const clearLastChoice = useCallback(() => setLastChoiceLabel(null), []);
 
@@ -99,6 +108,8 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     setChoiceLog([]);
     setCompletedScenarios(new Set());
     setLastChoiceLabel(null);
@@ -118,6 +129,8 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     setScreen(s.screen === "ending" ? "ending" : "playing");
   }, []);
 
@@ -126,7 +139,7 @@ export function useGameState() {
   }, []);
 
   const tryTriggerLocation = useCallback((locationId: string) => {
-    if (activeScenario || pendingReply) return;
+    if (activeScenario || pendingReply || activeInvestigationId) return;
 
     const t = timeForLocation(day, locationId);
     if (t !== time) setTime(t);
@@ -141,10 +154,31 @@ export function useGameState() {
 
     const s = scenarioFor(day, locationId, t);
     if (s && !completedScenarios.has(s.id)) {
-      setActiveScenario(s);
-      setStageId(s.startStage);
+      const inv = investigationFor(s.id);
+      if (inv) {
+        // Gate the scenario behind an investigation.
+        setPendingScenario(s);
+        setActiveInvestigationId(s.id);
+      } else {
+        setActiveScenario(s);
+        setStageId(s.startStage);
+      }
     }
-  }, [activeScenario, pendingReply, day, time, completedScenarios]);
+  }, [activeScenario, pendingReply, activeInvestigationId, day, time, completedScenarios]);
+
+  const completeInvestigation = useCallback(() => {
+    if (!pendingScenario) { setActiveInvestigationId(null); return; }
+    setActiveScenario(pendingScenario);
+    setStageId(pendingScenario.startStage);
+    setPendingScenario(null);
+    setActiveInvestigationId(null);
+  }, [pendingScenario]);
+
+  const abortInvestigation = useCallback(() => {
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
+  }, []);
+
 
   const makeChoice = useCallback((choice: StageChoice) => {
     if (!activeScenario) return;
@@ -205,6 +239,8 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     if (day >= 5) {
       setScreen("ending");
       return;
@@ -215,6 +251,8 @@ export function useGameState() {
   }, [day]);
 
   const currentStage = activeScenario && stageId ? activeScenario.stages[stageId] ?? null : null;
+
+  const activeInvestigation = activeInvestigationId ? investigationFor(activeInvestigationId) : null;
 
   return {
     screen, setScreen,
@@ -229,6 +267,7 @@ export function useGameState() {
     completedScenarios,
     lastChoiceLabel,
     hasSave,
+    activeInvestigation,
     tryTriggerLocation,
     makeChoice,
     advance,
@@ -238,8 +277,11 @@ export function useGameState() {
     beginNextDay,
     reset,
     clearLastChoice,
+    completeInvestigation,
+    abortInvestigation,
   };
 }
+
 
 export function computeEnding(m: Morality): { title: string; description: string } {
   const empathyScore = m.empathy + m.responsibility;
