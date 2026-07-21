@@ -88,7 +88,7 @@ export function Game() {
             </button>
           </div>
 
-          {!g.activeScenario && (
+          {!g.activeScenario && !g.activeInvestigation && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pixel-font text-[10px] text-cyan-300 bg-black/80 border-2 border-cyan-400/60 px-3 py-1.5" style={{ boxShadow: "0 0 12px rgba(60,232,255,0.3)" }}>
               ◄ A / D ► · WALK FORWARD TO MEET HUMANS
             </div>
@@ -102,16 +102,28 @@ export function Game() {
             onContinue={g.advance}
           />
 
+          <AnimatePresence>
+            {g.activeInvestigation && (
+              <InvestigationOverlay
+                key={g.activeInvestigation.scenarioId}
+                investigation={g.activeInvestigation}
+                onComplete={g.completeInvestigation}
+                onAbort={g.abortInvestigation}
+              />
+            )}
+          </AnimatePresence>
+
           <AICompanion
             lastChoice={g.lastChoiceLabel}
             morality={g.morality}
             totalChoices={g.choiceLog.length}
-            hidden={!!g.activeScenario || g.paused || infoOpen}
+            hidden={!!g.activeScenario || !!g.activeInvestigation || g.paused || infoOpen}
             positionRef={companionPosRef}
             onMessageExpired={g.clearLastChoice}
           />
 
           <InfoPanel open={infoOpen} onClose={() => setInfoOpen(false)} />
+
 
           <PauseMenu
             open={g.paused}
