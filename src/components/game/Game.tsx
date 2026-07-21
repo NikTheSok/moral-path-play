@@ -52,8 +52,8 @@ export function Game() {
           time={g.time}
           paused={g.paused}
           onEnterLocation={g.tryTriggerLocation}
-          blockInput={!!g.activeScenario || g.paused || g.screen !== "playing"}
-          cinematic={!!g.activeScenario}
+          blockInput={!!g.activeScenario || !!g.activeInvestigation || g.paused || g.screen !== "playing"}
+          cinematic={!!g.activeScenario || !!g.activeInvestigation}
           morality={g.morality}
           fameLevel={g.completedScenarios.size}
           companionScreenRef={companionPosRef}
