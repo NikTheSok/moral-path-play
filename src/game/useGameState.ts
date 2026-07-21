@@ -129,6 +129,8 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     setScreen(s.screen === "ending" ? "ending" : "playing");
   }, []);
 
