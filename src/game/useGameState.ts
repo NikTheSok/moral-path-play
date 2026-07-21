@@ -108,6 +108,8 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     setChoiceLog([]);
     setCompletedScenarios(new Set());
     setLastChoiceLabel(null);
