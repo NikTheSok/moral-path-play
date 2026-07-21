@@ -243,6 +243,8 @@ export function useGameState() {
 
   const currentStage = activeScenario && stageId ? activeScenario.stages[stageId] ?? null : null;
 
+  const activeInvestigation = activeInvestigationId ? investigationFor(activeInvestigationId) : null;
+
   return {
     screen, setScreen,
     morality,
@@ -256,6 +258,7 @@ export function useGameState() {
     completedScenarios,
     lastChoiceLabel,
     hasSave,
+    activeInvestigation,
     tryTriggerLocation,
     makeChoice,
     advance,
@@ -265,8 +268,11 @@ export function useGameState() {
     beginNextDay,
     reset,
     clearLastChoice,
+    completeInvestigation,
+    abortInvestigation,
   };
 }
+
 
 export function computeEnding(m: Morality): { title: string; description: string } {
   const empathyScore = m.empathy + m.responsibility;
