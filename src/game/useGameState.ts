@@ -90,10 +90,13 @@ export function useGameState() {
     setActiveScenario(null);
     setStageId(null);
     setPendingReply(null);
+    setActiveInvestigationId(null);
+    setPendingScenario(null);
     setPaused(false);
     setLastChoiceLabel(null);
     setHasSave(hasSavedGame());
   }, []);
+
 
   const clearLastChoice = useCallback(() => setLastChoiceLabel(null), []);
 
