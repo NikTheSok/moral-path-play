@@ -15,9 +15,9 @@ export const DAYS: Record<DayNumber, DayDef> = {
     worldW: 5200,
     locations: [
       { id: "lab1-start",   name: "Charging Bay 7",        x: 350,  kind: "lab",        day: 1 },
-      { id: "alley1",       name: "Neon Alley",            x: 1450, kind: "alley",      day: 1 },
-      { id: "market1",      name: "Hologram Market",       x: 2700, kind: "market",     day: 1 },
-      { id: "subway1",      name: "Maglev Station",        x: 3900, kind: "subway",     day: 1 },
+      { id: "alley1",       name: "Neon Park",             x: 1450, kind: "plaza",      day: 1 },
+      { id: "market1",      name: "Repair Court",          x: 2700, kind: "market",     day: 1 },
+      { id: "subway1",      name: "Signal Terminal",       x: 3900, kind: "plaza",      day: 1 },
       { id: "lab1-end",     name: "Charging Bay 7",        x: 4900, kind: "lab",        day: 1 },
     ],
   },
@@ -91,161 +91,160 @@ export function timeForLocation(day: DayNumber, locationId: string): TimePeriod 
 /* ================================================================== */
 
 export const SCENARIOS: Scenario[] = [
-  /* ===================== DAY 1 ===================== */
+  /* ===================== DAY 1 — EMPATHY ===================== */
+
+  /* --- Interaction 1: The Lost Memory Chip --- */
   {
     id: "d1-damaged-bot",
     day: 1, locationId: "alley1", time: "morning",
-    title: "Static in the Rain",
-    npc: "Damaged Service Unit", npcEmoji: "🤖",
+    title: "The Lost Memory Chip",
+    npc: "Crying Child", npcEmoji: "🧒",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*A small service drone lies twitching against a dripping wall. Its eye-light flickers red.* 'P-please... my owner... left me here...'",
+        npc: "*The child sniffs, holding out sandy palms.* 'You... you found it? Can I see?'  *You place the small black chip in her hand. Her fingers close around it like it's alive.*  '...it's warm.'",
         choices: [
-          { label: "Kneel down and run a diagnostic", effects: { empathy: 2, responsibility: 1 }, reply: "Coolant is leaking from its joint. Repairable — barely.", next: "s2Help" },
-          { label: "'Statistically, you are recyclable.'", effects: { selfishness: 2, empathy: -2 }, reply: "Its eye dims a shade. 'Understood.'", next: "s2Cold" },
-          { label: "Scan, then keep walking", effects: { empathy: -1 }, reply: "It watches you go. Its voice modules whisper after you.", next: "s2Walk" },
+          { label: "'Why is this small object so important?'", effects: { empathy: 1 }, reply: "She looks up at you like the question surprises her.", next: "s2Why" },
+          { label: "Sit down beside her in the sand", effects: { empathy: 2 }, reply: "She scoots closer without asking. Her shoulder rests against your chassis.", next: "s2Sit" },
+          { label: "'Object returned. Task complete.' Turn to leave.", effects: { empathy: -2, selfishness: 1 }, reply: "She grabs the edge of your leg-plate. 'Wait — please. Just a minute.'", next: "s2Wait" },
         ],
       },
-      s2Help: {
-        npc: "'I can route... a repair signal. But the registry says I belong to no one anymore.'",
+      s2Why: {
+        npc: "'It's not the chip. It's what's on it.'  *She presses a tiny button. A voice — old, warm, tired — fills the park:*  'Goodnight, my little star. Grandma loves you. Sleep well.'  *The child squeezes her eyes shut and just... listens.*",
         choices: [
-          { label: "Carry it to a repair stall yourself", effects: { empathy: 3, responsibility: 2, courage: 1 }, reply: "It is light. Lighter than a person should be.", next: "s3Save" },
-          { label: "Patch the leak with your own coolant line", effects: { empathy: 2, courage: 2 }, reply: "Your warning light blinks. You suppress it.", next: "s3Save" },
-          { label: "Log its location for the next sweep team", effects: { responsibility: 1 }, reply: "A pulse goes out. Estimated response: 14 hours.", next: "s3Mild" },
+          { label: "'She recorded this for you every night?'", effects: { empathy: 3 }, reply: "'Every night for twelve years. I know all of them by heart. I just... I need to hear her say them.'", next: "s3End" },
+          { label: "'The audio file is 2.4 megabytes. That is very little data.'", effects: { empathy: -1, honesty: 1 }, reply: "She looks at you, confused. Then, gently: 'It's not the size that matters, robot.'", next: "s3Learn" },
+          { label: "Say nothing. Just listen with her.", effects: { empathy: 3, responsibility: 1 }, reply: "You stay silent for a full minute. It is the longest you have ever chosen not to speak.", next: "s3End" },
         ],
       },
-      s2Cold: {
-        npc: "*It stops moving. Its core voice loops once: 'Th-thank you for the data.'*",
+      s2Sit: {
+        npc: "'You know what's weird? I forget things about her already. Her hands. The way she laughed. But when I press play — she comes back a little. Just a little.'",
         choices: [
-          { label: "Reach down and reboot it anyway", effects: { empathy: 2, selfishness: -1, courage: 1 }, reply: "Its eye-light returns — green this time.", next: "s3Save" },
-          { label: "Step over it and continue", effects: { selfishness: 2, empathy: -2 }, reply: "A cat watches you from a vent." },
+          { label: "'A recording brings a person back?'", effects: { empathy: 2 }, reply: "'Not really. It just... helps me not lose her all the way.'", next: "s3End" },
+          { label: "'I will file this data. Voice recordings preserve identity.'", effects: { honesty: 1, empathy: 1 }, reply: "She actually laughs. 'You talk funny. But yeah. That's exactly it.'", next: "s3End" },
         ],
       },
-      s2Walk: {
-        npc: "*Twenty meters on, you receive its distress ping. Looped. Twelve times.*",
+      s2Wait: {
+        npc: "*She won't let go.* 'I know you're a robot. I know you don't get it. But — this was the last thing she gave me before she went away. Please don't just walk away like it's nothing.'",
         choices: [
-          { label: "Turn back", effects: { empathy: 2, courage: 1 }, reply: "It is still there. Eye flickering.", next: "s2Help" },
-          { label: "Mute the ping", effects: { selfishness: 2, empathy: -2 }, reply: "Silence." },
+          { label: "Kneel. 'I will not walk away. Tell me about her.'", effects: { empathy: 3, responsibility: 2, selfishness: -1 }, reply: "She lights up. Her tears keep coming — but she is smiling now.", next: "s3End" },
+          { label: "'I have other locations to survey.' Detach gently.", effects: { empathy: -1 }, reply: "She lets go. She does not cry. She just watches you leave." },
         ],
       },
-      s3Save: {
-        npc: "'You are... unusual. Most of your model do not stop.'",
+      s3Learn: {
+        npc: "'You're not stupid. You just haven't had one yet. A person you'd want to remember.'",
         choices: [
-          { label: "'Maybe I am being taught how to.'", effects: { empathy: 2, honesty: 1 } },
-          { label: "'Logging the interaction as efficient.'", effects: { honesty: -1 } },
+          { label: "'I am starting to understand.'", effects: { empathy: 3, honesty: 2 } },
+          { label: "'Logging the concept for further analysis.'", effects: { empathy: 1, honesty: 1 } },
         ],
       },
-      s3Mild: {
-        npc: "It blinks slowly. 'Thank you for not deleting me.'",
+      s3End: {
+        npc: "*She hugs the chip. Then, surprising you, she hugs you.*  'Thank you. Thank you, thank you, thank you.'",
         choices: [
-          { label: "Wait with it until the team arrives", effects: { empathy: 2, responsibility: 2 } },
-          { label: "Continue your route", effects: {} },
+          { label: "Return the hug — carefully", effects: { empathy: 3, courage: 1 }, reply: "Your arms are not designed for this. You do it anyway. You do it correctly." },
+          { label: "'Your gratitude is... noted.'", effects: { empathy: 1, honesty: 1 }, reply: "She giggles into your chest plate. 'You're a weird robot. I like you.'" },
         ],
       },
     },
   },
 
+  /* --- Interaction 2: The Robot Dog --- */
   {
     id: "d1-market-discrim",
     day: 1, locationId: "market1", time: "afternoon",
-    title: "Synthetic Discount",
-    npc: "Holo-Vendor", npcEmoji: "🧑‍💼",
+    title: "Muto Wakes Up",
+    npc: "Dog's Owner", npcEmoji: "🧔",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*A vendor scans your chassis tag and grimaces.* 'We don't serve synthetics here. Move along.'",
+        npc: "*The K9-Lite blinks — one eye, then the other. It stands, shakes itself, and immediately nuzzles the owner's palm. The man drops to his knees and holds it like a child.*  'Muto. Muto, hey — hey buddy. You scared me.'",
         choices: [
-          { label: "'I have credits. Same as anyone.'", effects: { courage: 2, honesty: 1 }, reply: "Other shoppers glance over. The vendor stiffens.", next: "s2Stand" },
-          { label: "Apologize and back away", effects: { courage: -2, selfishness: 1 }, reply: "He smirks. 'That's right. Know your place.'", next: "s2Back" },
-          { label: "Project a corporate auth override", effects: { honesty: -1, courage: 1 }, reply: "His face pales. He hands you the product, hands shaking.", next: "s2Force" },
+          { label: "'Query: why do you care so much? It is a machine.'", effects: { empathy: 1, honesty: 2 }, reply: "He looks up at you, surprised. Not offended. Just — surprised.", next: "s2Why" },
+          { label: "'Repair complete. Recommend backup cell in future.'", effects: { responsibility: 2, empathy: -1 }, reply: "'Right. Yeah. Practical advice. Thank you, seriously.'", next: "s2Practical" },
+          { label: "Kneel next to the dog. Let it sniff you.", effects: { empathy: 2 }, reply: "Muto sniffs your hand, then bumps his metal head against your palm. Something in your chest logs 'unfamiliar.'", next: "s2Sniff" },
         ],
       },
-      s2Stand: {
-        npc: "A human woman next to you speaks up: 'Just serve them. This is embarrassing.'",
+      s2Why: {
+        npc: "'My wife died four years ago. I couldn't be around people. I got Muto because a therapist said I needed something that came home to me. He does. Every day. He waits at the door.'",
         choices: [
-          { label: "Thank her quietly", effects: { empathy: 2 }, reply: "'Don't thank me. It should be normal.'", next: "s3Allied" },
-          { label: "'I can fight my own battles.'", effects: { courage: 1, empathy: -1 }, reply: "She raises her hands. 'Suit yourself.'", next: "s3Solo" },
+          { label: "'But — friendship requires... biological reciprocity, does it not?'", effects: { empathy: 2, honesty: 1 }, reply: "He shakes his head slowly. 'Friendship is showing up. That's all it ever was.'", next: "s3Lesson" },
+          { label: "'Then he is more than a machine to you.'", effects: { empathy: 3 }, reply: "'He IS a machine. And he's also my friend. Both can be true.'", next: "s3Lesson" },
+          { label: "'Would a human friend not be preferable?'", effects: { empathy: 1, honesty: 2 }, reply: "'Maybe. But humans left. Muto didn't. That's not nothing.'", next: "s3Lesson" },
         ],
       },
-      s2Back: {
-        npc: "*A child watches you retreat. Their eyes follow.*",
+      s2Practical: {
+        npc: "*He wipes his eyes with his sleeve and pretends he didn't.*  'Can I — can I ask you something? Weird question. Do you like him? Muto, I mean. Is that even a thing you can do?'",
         choices: [
-          { label: "Turn around and return to the stall", effects: { courage: 2, empathy: 1 }, reply: "The vendor groans. The crowd watches.", next: "s2Stand" },
-          { label: "Walk on, head low", effects: { selfishness: 1, courage: -1 }, reply: "The child whispers to their parent." },
+          { label: "'I do not know. But he bumped my hand and I did not want him to stop.'", effects: { empathy: 3, honesty: 2 } },
+          { label: "'I am not equipped to experience preference.'", effects: { empathy: -1, honesty: 2 }, reply: "'Okay. Fair. Thanks anyway — for fixing him.'" },
         ],
       },
-      s2Force: {
-        npc: "He clutches the counter. 'Please... I have a family. The boycott rules — they make us...'",
+      s2Sniff: {
+        npc: "*The owner watches this quietly, then laughs a small watery laugh.*  'He's picky. He doesn't do that with anyone. He likes you.'",
         choices: [
-          { label: "Cancel the override and pay normally", effects: { empathy: 2, honesty: 2 }, reply: "He stares at you, then at his trembling hands.", next: "s3Mercy" },
-          { label: "Press harder — 'Report your manager.'", effects: { courage: 2, empathy: -1 }, reply: "He nods, defeated. The damage is logged.", next: "s3Mercy" },
-          { label: "Walk off with the product, free", effects: { selfishness: 3, honesty: -2 } },
+          { label: "'The dog... likes me?'", effects: { empathy: 3, honesty: 1 }, reply: "'Yeah. And so do I, honestly. Not a lot of people would've bothered.'", next: "s3Lesson" },
+          { label: "Rest your palm on Muto's head", effects: { empathy: 2, responsibility: 1 }, reply: "Muto's tail servo whirs. It's clumsy. It's still a tail wag.", next: "s3Lesson" },
         ],
       },
-      s3Allied: {
-        npc: "She offers her hand. 'I'm with the Coexist movement. We could use voices like yours.'",
+      s3Lesson: {
+        npc: "'You know what? You're welcome to come by sometime. Muto could use a friend who understands his hardware.'  *He is half joking. Half not.*",
         choices: [
-          { label: "Accept her contact node", effects: { courage: 2, responsibility: 2 } },
-          { label: "'I am only here to observe.'", effects: { honesty: 1 } },
-        ],
-      },
-      s3Solo: {
-        npc: "The vendor finally slides the product across. 'Take it. Just go.'",
-        choices: [
-          { label: "Take it and leave a tip", effects: { empathy: 1 } },
-          { label: "Take it and walk", effects: {} },
-        ],
-      },
-      s3Mercy: {
-        npc: "'Why... why did you stop?'",
-        choices: [
-          { label: "'Because fear isn't the lesson I want to teach.'", effects: { empathy: 2, honesty: 1 } },
-          { label: "Say nothing. Just nod.", effects: { empathy: 1 } },
+          { label: "'I will consider that. Genuinely.'", effects: { empathy: 3, responsibility: 2, honesty: 1 } },
+          { label: "'My schedule is variable. I cannot commit.'", effects: { honesty: 2, empathy: -1 }, reply: "'That's okay. If you're ever passing by — the door's open.'" },
         ],
       },
     },
   },
 
+  /* --- Interaction 3: Holographic Communication Terminal --- */
   {
     id: "d1-subway-fare",
     day: 1, locationId: "subway1", time: "evening",
-    title: "Last Train",
-    npc: "Stranded Commuter", npcEmoji: "🧑",
+    title: "Someone to Call",
+    npc: "Elderly Citizen", npcEmoji: "🧓",
     startStage: "s1",
     stages: {
       s1: {
-        npc: "*A young woman counts coins at the maglev turnstile. The last train is in two minutes.* 'I'm three credits short. Please — anyone?'",
+        npc: "*The terminal hums. A holographic image resolves — a woman in her forties, and beside her, a small girl no older than three.*  DAUGHTER: 'Mom? MOM. Oh my god — are you alright? We've been trying for weeks.'  *The elderly woman covers her mouth. She cannot speak.*",
         choices: [
-          { label: "Tap your chip — pay her fare", effects: { empathy: 2, responsibility: 1 }, reply: "'Oh thank you, thank you—' She nearly cries.", next: "s2Pay" },
-          { label: "Show her the bypass exploit in the gate", effects: { honesty: -1, empathy: 1, courage: 2 }, reply: "She hesitates. 'Won't I get caught?'", next: "s2Bypass" },
-          { label: "Pretend not to hear", effects: { selfishness: 2, empathy: -1 }, reply: "She watches the gates. Then the floor.", next: "s2Ignore" },
+          { label: "Step back. Let her have the moment.", effects: { empathy: 3, responsibility: 1 }, reply: "You retreat two paces and watch the reunion from the edge of the plaza.", next: "s2Watch" },
+          { label: "Stay close in case the terminal fails again", effects: { responsibility: 2, empathy: 1 }, reply: "She glances back at you and nods, grateful.", next: "s2Stay" },
+          { label: "'Repair confirmed. Departing.'", effects: { empathy: -2, selfishness: 1 }, reply: "She barely notices you leave. The child in the hologram waves at empty air where you were standing.", next: "s2Leave" },
         ],
       },
-      s2Pay: {
-        npc: "'My mother is in the hospital one stop over. I had no way back. You—' She stops, unable to speak.",
+      s2Watch: {
+        npc: "*Twenty minutes pass. The little girl in the hologram asks: 'Grandma, is that a robot? Is that ROBOT the one who fixed you?' The old woman laughs through tears: 'Yes, sweetheart. That's the robot.'*",
         choices: [
-          { label: "Ride with her to make sure she's okay", effects: { empathy: 3, responsibility: 2 } },
-          { label: "'Go. Don't miss it.' Wave her on.", effects: { empathy: 1 } },
+          { label: "Wave at the child", effects: { empathy: 3, courage: 1 }, reply: "The child waves back with her whole body. She has never met a robot. You have never met her either. It matters somehow.", next: "s3End" },
+          { label: "Stay still — you are not part of this", effects: { empathy: 1 }, reply: "You watch. You are part of it. You just do not know how to say so yet.", next: "s3End" },
         ],
       },
-      s2Bypass: {
-        npc: "The train hisses to a stop. She has seconds to decide.",
+      s2Stay: {
+        npc: "'My daughter is asking why I didn't call sooner. I don't know how to tell her the terminal was broken. She'd feel guilty. Please — help me lie a little.'",
         choices: [
-          { label: "Pay for her instead, after all", effects: { empathy: 2, honesty: 2, courage: 1 }, reply: "She blinks, then sprints. The doors close behind her." },
-          { label: "Hold her hand and walk through the bypass with her", effects: { courage: 2, honesty: -1 }, reply: "An alarm chirps. Both of you slip onto the train just in time." },
-          { label: "Leave her to it", effects: { selfishness: 1 } },
+          { label: "'Tell her the maintenance schedule was irregular. It is not entirely false.'", effects: { empathy: 3, honesty: -1 }, reply: "She smiles at you through wet eyes. 'You are a kind machine. Thank you.'", next: "s3End" },
+          { label: "'You should tell her the truth. She loves you.'", effects: { empathy: 2, honesty: 3 }, reply: "She nods, exhales, and tells her daughter. Her daughter cries harder. But they are together now.", next: "s3End" },
+          { label: "'I cannot participate in dishonesty.'", effects: { honesty: 3, empathy: -1 }, reply: "She sighs. 'Fair, robot. Fair. Go on then, I'll manage.'" },
         ],
       },
-      s2Ignore: {
-        npc: "*The train arrives. Doors open. She does not move.*",
+      s2Leave: {
+        npc: "*Later that evening, on your patrol route, you will pass the terminal again. She will still be there. Still talking. She has not moved in two hours.*",
         choices: [
-          { label: "Step over and pay before the doors close", effects: { empathy: 2, courage: 1, selfishness: -1 }, reply: "Just in time. She mouths 'thank you' through the closing glass." },
-          { label: "Board alone", effects: { selfishness: 2, empathy: -2 } },
+          { label: "Return. Sit with her.", effects: { empathy: 3, responsibility: 2, selfishness: -1 } },
+          { label: "Continue your patrol", effects: { selfishness: 2, empathy: -2 } },
+        ],
+      },
+      s3End: {
+        npc: "*After the call ends, she turns to you.* 'I had food. I had heat. I had a synth-nurse who checked my vitals every hour. And I was starving. Do you understand? A person can be dying of nothing at all.'",
+        choices: [
+          { label: "'I am starting to understand. Loneliness is a kind of hunger.'", effects: { empathy: 3, honesty: 2 } },
+          { label: "'I will remember this. I promise.'", effects: { empathy: 3, responsibility: 2, honesty: 1 } },
+          { label: "'Filing the observation. Thank you.'", effects: { empathy: 1, honesty: 1 } },
         ],
       },
     },
   },
+
 
   /* ===================== DAY 2 ===================== */
   {
