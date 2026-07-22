@@ -36,8 +36,8 @@ export interface BatteryOption {
   id: string;
   label: string;
   voltage: string;
-  /** Owner/robot line when the wrong battery is inserted. */
-  wrongComment: string;
+  /** Owner/robot line when the wrong battery is inserted. Omitted for the correct cell. */
+  wrongComment?: string;
 }
 
 /* --- Circuit (Interaction 3: Holo Terminal) --- */
