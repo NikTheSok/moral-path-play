@@ -3,11 +3,13 @@ import type { DayNumber, Morality } from "@/game/types";
 import { DAYS } from "@/game/scenarios";
 import { MoralityPanel } from "./MoralityPanel";
 import { RobotSprite } from "./RobotSprite";
+import type { JournalEntry } from "@/game/useGameState";
 
 interface Props {
   day: DayNumber;
   morality: Morality;
   isFinal: boolean;
+  journalEntries?: JournalEntry[];
   onContinue: () => void;
   onMenu: () => void;
 }
@@ -20,6 +22,21 @@ const DAY_TITLES = [
   "Signal trial complete",
   "Final trial complete",
 ];
+
+/** Narrative observations by day. Day 1 gets empathy-specific observations. */
+function narrativeObservations(day: DayNumber, m: Morality): string[] {
+  if (day === 1) {
+    const out: string[] = [];
+    if (m.empathy >= 6) out.push("You prioritized emotional well-being over efficiency.");
+    if (m.empathy >= 3) out.push("You showed curiosity toward human emotions.");
+    if (m.responsibility >= 3) out.push("You returned to a task instead of walking on.");
+    if (m.empathy >= 4) out.push("Empathy development increased. Baseline shifted.");
+    if (m.selfishness >= 3) out.push("Warning: self-interest overtook compassion in one or more choices.");
+    if (out.length === 0) out.push("You completed all objectives. Emotional resonance: minimal. Reassessment recommended.");
+    return out;
+  }
+  return [];
+}
 
 function behavioralReadout(m: Morality): { dominant: string; trend: string; flag: string } {
   const entries = Object.entries(m) as [keyof Morality, number][];
@@ -36,9 +53,10 @@ function behavioralReadout(m: Morality): { dominant: string; trend: string; flag
   return { dominant, trend, flag };
 }
 
-export function ChargingScreen({ day, morality, isFinal, onContinue, onMenu }: Props) {
+export function ChargingScreen({ day, morality, isFinal, journalEntries = [], onContinue, onMenu }: Props) {
   const nextDay = Math.min(5, day + 1) as DayNumber;
   const readout = behavioralReadout(morality);
+  const observations = narrativeObservations(day, morality);
 
   return (
     <motion.div
