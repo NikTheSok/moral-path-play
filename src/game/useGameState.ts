@@ -284,6 +284,7 @@ export function useGameState() {
     paused, setPaused,
     choiceLog,
     completedScenarios,
+    journalEntries,
     lastChoiceLabel,
     hasSave,
     activeInvestigation,
