@@ -106,6 +106,36 @@ export function ChargingScreen({ day, morality, isFinal, journalEntries = [], on
           </div>
         </motion.div>
 
+        {observations.length > 0 && (
+          <motion.div
+            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}
+            className="mt-3 w-full max-w-md border-2 border-pink-400/40 bg-black/60 p-3"
+          >
+            <div className="pixel-font text-[9px] tracking-widest text-pink-400/80 mb-2">▸ AI OBSERVATIONS</div>
+            <ul className="space-y-1">
+              {observations.map((o, i) => (
+                <li key={i} className="pixel-font text-[10px] text-cyan-100/90 leading-[1.7]">▸ {o}</li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+
+        {journalEntries.length > 0 && (
+          <motion.div
+            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
+            className="mt-3 w-full max-w-md border-2 border-cyan-400/40 bg-black/60 p-3"
+          >
+            <div className="pixel-font text-[9px] tracking-widest text-cyan-300/80 mb-2">▸ ROBOT JOURNAL · DAY {day}</div>
+            <ul className="space-y-2">
+              {journalEntries.map((j, i) => (
+                <li key={i} className="pixel-font text-[10px] text-cyan-100/85 leading-[1.75] border-l-2 border-pink-400/60 pl-2 italic">
+                  "{j.text}"
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+
         <motion.p
           initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7 }}
           className="pixel-font text-[11px] leading-[2] text-cyan-200/80 mt-5 max-w-lg"

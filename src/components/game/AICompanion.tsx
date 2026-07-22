@@ -26,17 +26,31 @@ function pickLine(choice: string, m: Morality, stage: number): string {
   const evolving = stage > 5;
   const matured = stage > 10;
 
-  if (/walk|ignore|leave|mute|delete|nothing|recycl|step over|board alone|archive/.test(lc)) {
+  // Day-1 empathy-specific analytical lines — companion analyzes facts, robot learns emotion.
+  if (/chip|memory|grandma|listen|hug|sit down|sit beside/.test(lc)) {
+    return "Emotional attachment probability: HIGH. Object market value: negligible. Value discrepancy logged.";
+  }
+  if (/muto|dog|sniff|nuzzle|kneel next|pet/.test(lc)) {
+    return "Biological reciprocity: absent. Behavioral bond: measurable. Reclassifying 'friendship'.";
+  }
+  if (/wave|terminal|call|hologram|hospital|daughter|granddaughter|sit with her/.test(lc)) {
+    return "Physical needs: satisfied. Emotional index: critical. Loneliness registers as measurable deficit.";
+  }
+  if (/query.*machine|why do you care|not equipped|not programmed/.test(lc)) {
+    return "Curiosity subroutine engaged. This is a good question. I do not have an answer yet.";
+  }
+
+  if (/walk|ignore|leave|mute|delete|nothing|recycl|step over|board alone|archive|departing|not part/.test(lc)) {
     if (matured) return "You chose distance. I am... disappointed. I did not think I could be.";
     if (evolving) return "Disengaging from suffering does not erase it.";
     return "Logical disengagement. Efficient. Cold.";
   }
-  if (/help|carry|patch|pay|kneel|stay|listen|wait|thank/.test(lc)) {
+  if (/help|carry|patch|pay|kneel|stay|listen|wait|thank|return|sit/.test(lc)) {
     if (matured) return "You helped them despite receiving no reward. I am beginning to understand why humans do that.";
     if (evolving) return "Empathy pattern logged. I disagree — and yet I am... moved.";
     return "Inefficient. But the human's biosignature relaxed. Curious.";
   }
-  if (/lie|fabricat|bypass|override|free|exploit/.test(lc)) {
+  if (/lie|fabricat|bypass|override|free|exploit|maintenance schedule/.test(lc)) {
     if (matured) return "A protective untruth. Humans call this kindness. I am updating my dictionary.";
     return "A useful lie. The humans would call it kindness. Or treason.";
   }
