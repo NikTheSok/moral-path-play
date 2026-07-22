@@ -3,11 +3,13 @@ import type { DayNumber, Morality } from "@/game/types";
 import { DAYS } from "@/game/scenarios";
 import { MoralityPanel } from "./MoralityPanel";
 import { RobotSprite } from "./RobotSprite";
+import type { JournalEntry } from "@/game/useGameState";
 
 interface Props {
   day: DayNumber;
   morality: Morality;
   isFinal: boolean;
+  journalEntries?: JournalEntry[];
   onContinue: () => void;
   onMenu: () => void;
 }
@@ -20,6 +22,21 @@ const DAY_TITLES = [
   "Signal trial complete",
   "Final trial complete",
 ];
+
+/** Narrative observations by day. Day 1 gets empathy-specific observations. */
+function narrativeObservations(day: DayNumber, m: Morality): string[] {
+  if (day === 1) {
+    const out: string[] = [];
+    if (m.empathy >= 6) out.push("You prioritized emotional well-being over efficiency.");
+    if (m.empathy >= 3) out.push("You showed curiosity toward human emotions.");
+    if (m.responsibility >= 3) out.push("You returned to a task instead of walking on.");
+    if (m.empathy >= 4) out.push("Empathy development increased. Baseline shifted.");
+    if (m.selfishness >= 3) out.push("Warning: self-interest overtook compassion in one or more choices.");
+    if (out.length === 0) out.push("You completed all objectives. Emotional resonance: minimal. Reassessment recommended.");
+    return out;
+  }
+  return [];
+}
 
 function behavioralReadout(m: Morality): { dominant: string; trend: string; flag: string } {
   const entries = Object.entries(m) as [keyof Morality, number][];
@@ -36,9 +53,10 @@ function behavioralReadout(m: Morality): { dominant: string; trend: string; flag
   return { dominant, trend, flag };
 }
 
-export function ChargingScreen({ day, morality, isFinal, onContinue, onMenu }: Props) {
+export function ChargingScreen({ day, morality, isFinal, journalEntries = [], onContinue, onMenu }: Props) {
   const nextDay = Math.min(5, day + 1) as DayNumber;
   const readout = behavioralReadout(morality);
+  const observations = narrativeObservations(day, morality);
 
   return (
     <motion.div
@@ -87,6 +105,36 @@ export function ChargingScreen({ day, morality, isFinal, onContinue, onMenu }: P
             {readout.flag}
           </div>
         </motion.div>
+
+        {observations.length > 0 && (
+          <motion.div
+            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }}
+            className="mt-3 w-full max-w-md border-2 border-pink-400/40 bg-black/60 p-3"
+          >
+            <div className="pixel-font text-[9px] tracking-widest text-pink-400/80 mb-2">▸ AI OBSERVATIONS</div>
+            <ul className="space-y-1">
+              {observations.map((o, i) => (
+                <li key={i} className="pixel-font text-[10px] text-cyan-100/90 leading-[1.7]">▸ {o}</li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+
+        {journalEntries.length > 0 && (
+          <motion.div
+            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
+            className="mt-3 w-full max-w-md border-2 border-cyan-400/40 bg-black/60 p-3"
+          >
+            <div className="pixel-font text-[9px] tracking-widest text-cyan-300/80 mb-2">▸ ROBOT JOURNAL · DAY {day}</div>
+            <ul className="space-y-2">
+              {journalEntries.map((j, i) => (
+                <li key={i} className="pixel-font text-[10px] text-cyan-100/85 leading-[1.75] border-l-2 border-pink-400/60 pl-2 italic">
+                  "{j.text}"
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
 
         <motion.p
           initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7 }}

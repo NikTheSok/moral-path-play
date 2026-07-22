@@ -3,10 +3,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import type { Investigation, Interactable } from "@/game/investigation";
 import { SequenceChallenge } from "./SequenceChallenge";
+import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
+import { BatteryChallenge } from "./BatteryChallenge";
+import { CircuitChallenge } from "./CircuitChallenge";
 
 interface Props {
   investigation: Investigation;
-  onComplete: () => void;
+  onComplete: (entry?: string) => void;
   onAbort: () => void;
 }
 
@@ -192,7 +195,7 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           {/* Proceed */}
           <div className="mt-6 flex justify-end">
             <button
-              onClick={onComplete}
+              onClick={() => onComplete(investigation.journalEntry)}
               disabled={!canProceed}
               className="pixel-font text-[11px] tracking-widest px-5 py-3 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300 disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ boxShadow: canProceed ? "0 0 18px rgba(60,232,255,0.6)" : "none" }}
@@ -301,15 +304,45 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-20 bg-black/80 flex items-center justify-center p-4"
           >
-            <SequenceChallenge
-              size={investigation.challenge.size}
-              label={investigation.challenge.label}
-              onComplete={() => {
-                setChallengeDone(true);
-                setChallengeOpen(false);
-              }}
-              onCancel={() => setChallengeOpen(false)}
-            />
+            {investigation.challenge.kind === "sequence" && (
+              <SequenceChallenge
+                size={investigation.challenge.size ?? 4}
+                label={investigation.challenge.label}
+                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {investigation.challenge.kind === "hidden-object" && investigation.challenge.objects && investigation.challenge.correctObjectId && (
+              <HiddenObjectChallenge
+                label={investigation.challenge.label}
+                intro={investigation.challenge.intro}
+                objects={investigation.challenge.objects}
+                correctId={investigation.challenge.correctObjectId}
+                successLine={investigation.challenge.successLine}
+                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {investigation.challenge.kind === "battery" && investigation.challenge.batteries && investigation.challenge.correctBatteryId && (
+              <BatteryChallenge
+                label={investigation.challenge.label}
+                intro={investigation.challenge.intro}
+                batteries={investigation.challenge.batteries}
+                correctId={investigation.challenge.correctBatteryId}
+                successLine={investigation.challenge.batterySuccessLine}
+                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {investigation.challenge.kind === "circuit" && investigation.challenge.nodes && (
+              <CircuitChallenge
+                label={investigation.challenge.label}
+                intro={investigation.challenge.intro}
+                nodes={investigation.challenge.nodes}
+                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

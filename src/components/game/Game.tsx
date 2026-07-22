@@ -161,6 +161,7 @@ export function Game() {
             day={g.day}
             morality={g.morality}
             isFinal={g.day >= 5}
+            journalEntries={g.journalEntries.filter((j) => j.day === g.day)}
             onContinue={g.beginNextDay}
             onMenu={g.reset}
           />
