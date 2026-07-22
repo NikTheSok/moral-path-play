@@ -75,6 +75,7 @@ export function useGameState() {
 
   const [choiceLog, setChoiceLog] = useState<ChoiceLog[]>([]);
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [paused, setPaused] = useState(false);
   const [lastChoiceLabel, setLastChoiceLabel] = useState<string | null>(null);
   const [hasSave, setHasSave] = useState<boolean>(() => hasSavedGame());
@@ -88,9 +89,10 @@ export function useGameState() {
       choiceLog,
       completedScenarios: Array.from(completedScenarios),
       lastChoiceLabel,
+      journalEntries,
     };
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(data)); setHasSave(true); } catch {}
-  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel]);
+  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries]);
 
   const reset = useCallback(() => {
     setScreen("menu");
@@ -119,6 +121,7 @@ export function useGameState() {
     setPendingScenario(null);
     setChoiceLog([]);
     setCompletedScenarios(new Set());
+    setJournalEntries([]);
     setLastChoiceLabel(null);
     setHasSave(false);
     setScreen("intro");
@@ -132,6 +135,7 @@ export function useGameState() {
     setTime(s.time);
     setChoiceLog(s.choiceLog ?? []);
     setCompletedScenarios(new Set(s.completedScenarios ?? []));
+    setJournalEntries(s.journalEntries ?? []);
     setLastChoiceLabel(s.lastChoiceLabel ?? null);
     setActiveScenario(null);
     setStageId(null);
@@ -173,13 +177,21 @@ export function useGameState() {
     }
   }, [activeScenario, pendingReply, activeInvestigationId, day, time, completedScenarios]);
 
-  const completeInvestigation = useCallback(() => {
+  const completeInvestigation = useCallback((entry?: string) => {
+    if (entry && pendingScenario) {
+      const scenarioId = pendingScenario.id;
+      setJournalEntries((prev) =>
+        prev.some((j) => j.scenarioId === scenarioId)
+          ? prev
+          : [...prev, { day, scenarioId, text: entry }]
+      );
+    }
     if (!pendingScenario) { setActiveInvestigationId(null); return; }
     setActiveScenario(pendingScenario);
     setStageId(pendingScenario.startStage);
     setPendingScenario(null);
     setActiveInvestigationId(null);
-  }, [pendingScenario]);
+  }, [pendingScenario, day]);
 
   const abortInvestigation = useCallback(() => {
     setActiveInvestigationId(null);
