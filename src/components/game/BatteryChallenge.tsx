@@ -28,7 +28,7 @@ export function BatteryChallenge({ label, intro, batteries, correctId, successLi
       setDone(true);
       window.setTimeout(onComplete, 1500);
     } else {
-      setMessage(b.wrongComment);
+      setMessage(b.wrongComment ?? "The dog stutters, then goes dark again.");
       setTone("wrong");
       setShake((n) => n + 1);
     }

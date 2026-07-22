@@ -3,10 +3,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import type { Investigation, Interactable } from "@/game/investigation";
 import { SequenceChallenge } from "./SequenceChallenge";
+import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
+import { BatteryChallenge } from "./BatteryChallenge";
+import { CircuitChallenge } from "./CircuitChallenge";
 
 interface Props {
   investigation: Investigation;
-  onComplete: () => void;
+  onComplete: (entry?: string) => void;
   onAbort: () => void;
 }
 
