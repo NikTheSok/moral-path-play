@@ -17,6 +17,12 @@ export interface ChoiceLog {
   time: TimePeriod;
 }
 
+export interface JournalEntry {
+  day: DayNumber;
+  scenarioId: string;
+  text: string;
+}
+
 interface PendingReply {
   text: string;
   nextStage: string | null;
@@ -30,6 +36,7 @@ interface SaveState {
   choiceLog: ChoiceLog[];
   completedScenarios: string[];
   lastChoiceLabel: string | null;
+  journalEntries?: JournalEntry[];
 }
 
 function loadSave(): SaveState | null {
