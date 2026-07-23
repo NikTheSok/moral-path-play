@@ -1,137 +1,64 @@
-# Gameplay Redesign — From Quiz to Investigation
+# Redesign — Educational Adventure (Days 1–5)
 
-## Goal
+Goal: replace the "walk → talk → pick answer" loop with hands-on Learning Challenges, one per interaction, three per day. Preserve every existing system (world, robot, save, morality, reputation, companion, charging chamber, endings, UI, animations, menus, music, maps).
 
-Keep everything visible today (pixel-art city, robot, drone, 5 days, morality, reputation, save, endings, menus). Change **how a scenario plays out**: instead of walking up to an NPC and immediately picking a dialogue option, the player must scan, interact with props, talk to multiple sources, and complete a short challenge before the moral choice unlocks.
+## What stays untouched
+- `GameWorld.tsx`, `RobotSprite`, `AICompanion`, `MoralityPanel`, `TimeIndicator`, `InfoPanel`, `PauseMenu`, `MainMenu`, `IntroCutscene`, `ChargingScreen`, `EndingScreen`, `Credits`, save keys, morality math, reputation, ending computation, day/time progression.
+- Scenario IDs and their world positions/day slots — only the content and interaction type change.
 
-## New per-scenario loop
+## What changes
+- `src/game/investigation.ts` — add new challenge kinds and data schemas.
+- `src/game/scenarios.ts` — rewrite dialogue for all 15 interactions to be warm/age-10-25, remove "quiz" tone, add positive NPC reactions.
+- `src/components/game/InvestigationOverlay.tsx` — route new challenge components + badge award flow.
+- New challenge components under `src/components/game/challenges/`, one per unique mechanic (see below).
+- New `BadgeAward.tsx` — short success animation + Moral Badge popup, journal line.
+- `useGameState.ts` — add `badges: string[]` to state + save; helper `awardBadge(kind)`.
 
-```text
-Enter location  →  Objective posted
-   ↓
-Explore & Scan (S key)  →  clues logged
-Interact with props (E key)  →  more clues / mini-challenge
-Talk to 2–3 NPCs (witness / victim / bystander)  →  perspectives
-   ↓
-Short challenge (30–90s): hack / rewire / repair / lockpick
-   ↓
-Moral choice unlocks in existing DialogueBox
-   ↓
-Immediate reply  +  flag stored for later days
-```
+## Per-day mechanic map (each mechanic used only once per day)
 
-The moral-decision UI itself stays the same, so the "quiz" is now the last beat of a real investigation, not the whole scenario.
+**Day 1 — Empathy**
+1. Toy dispute — *Observation & Search*: talk to 3 kids (branching testimony), then click hotspots on a playground scene to find the toy stuck under equipment.
+2. Lost robot pet — *Clue Trail*: follow a chain of small clues across a mini-scene (paw prints → dropped ribbon → owner), each click reveals next.
+3. Lonely elder — *Helpful Fetch*: pick 3 comforting items from a grid of ~10 (chair, warm drink, book) — wrong picks give gentle "not quite" feedback.
 
-## What changes in the codebase
+**Day 2 — Responsibility**
+1. Festival cleanup — *Sorting*: drag trash items into Plastic / Paper / Glass / Organic bins; wrong drop explains why recycling matters.
+2. Broken bike — *Assembly*: drag chain/wheel/pedal/handlebars into correct slots on a bike silhouette.
+3. Library — *Categorize*: return books to shelves by color/category tag.
 
-Preserves current architecture; extends types and adds a small investigation layer alongside `stages`.
+**Day 3 — Honesty**
+1. Missing wallet — *Investigation*: question 3 citizens, inspect 3 spots; wallet found under bench, no one accused.
+2. Copied homework — *Return the Notebook*: locate original notebook in a room scene, hand it back.
+3. Broken window — *Fact-check*: examine footprints, ball trajectory, wind flag — deduce it was the wind (multiple-evidence puzzle).
 
-### 1. Data model (`src/game/types.ts`, `src/game/scenarios.ts`)
+**Day 4 — Fairness**
+1. Swings queue — *Ordering*: drag children into a fair rotation queue.
+2. Snack share — *Distribution*: divide N snacks across M kids equally (numeric drag).
+3. Charging priority — *Triage*: sort robots by battery level (lowest first).
 
-Extend `Scenario` with an optional `investigation` block. Scenarios without it keep working (backwards compatible), so we can migrate day-by-day.
+**Day 5 — Courage**
+1. Damaged bridge — *Path building*: place planks across gaps to form a safe crossing.
+2. Blocked road — *Cooperation*: recruit nearby robots (click to ask), then a combined push mini-action.
+3. Final celebration — *Recap*: returning NPCs from Days 1–4 thank you; short cutscene, no puzzle — awards final "Human Heart" badge and feeds into existing ending computation.
 
-```ts
-interface Clue { id: string; label: string; detail: string; }
-interface Interactable {
-  id: string; kind: "scan" | "prop" | "npc";
-  x: number;                  // world-space, relative to location
-  sprite: "terminal" | "body" | "camera" | "panel" | "drone" | "crate" | "npc";
-  label: string;              // "Broken drone", "Security cam"
-  yieldsClueId?: string;
-  requiresClueId?: string;    // gated interactions
-  npcStageId?: string;        // opens a short info dialogue (not the moral one)
-}
-interface Challenge {
-  kind: "rewire" | "hack" | "sequence" | "align";
-  unlockAfterClues: number;   // min clues before challenge appears
-}
-interface Investigation {
-  objective: string;
-  interactables: Interactable[];
-  requiredClues: string[];    // must be collected to unlock moral stage
-  challenge?: Challenge;
-  moralStageId: string;       // the existing dialogue stage to open at the end
-}
-```
+## Rewards
+- On each success: 1.2s success burst (Framer motion, sparkles + badge icon), morality delta applied via existing `applyChoice`, journal entry appended, badge added to `badges[]`.
+- Badge list surfaced in `InfoPanel` (new "Badges" tab) and in `ChargingScreen` day recap.
 
-`Scenario.startStage` becomes optional; new scenarios use `investigation.moralStageId` instead. Existing stages/choices/effects/reply chain is untouched — the moral decision still flows through `makeChoice` → morality delta → `pendingReply`.
+## Dialogue tone
+- Rewrite all Day 1–5 NPC/robot lines: friendly, natural, positive, 10–25 audience, no dark themes, no "which is more moral" prompts. NPCs explain *why* after the challenge resolves.
 
-### 2. State (`src/game/useGameState.ts`)
+## Technical notes
+- Reuse existing `InvestigationOverlay` shell (title bar, clue log, cancel). Add a `challenge.kind` switch that renders the appropriate challenge component.
+- All new challenges share a common `ChallengeProps { onComplete(result); onCancel() }` contract; overlay handles morality delta + badge + journal on `onComplete`.
+- Drag-and-drop uses HTML5 DnD (no new deps).
+- Type-check with `tsgo` after each day's wiring.
 
-Add investigation state without disturbing the current flow:
+## Delivery order
+1. Schema + shared success/badge component + state changes.
+2. Day 1 (3 challenges + dialogue rewrite).
+3. Day 2, then 3, 4, 5 in the same shape.
+4. InfoPanel badges tab, ChargingScreen recap update.
+5. Final typecheck pass.
 
-- `activeInvestigation: { scenarioId, cluesFound: Set<string>, challengeDone: boolean } | null`
-- `worldFlags: Record<string, string>` — e.g. `alley1_outcome: "helped"` — persisted with the save; consumed by later scenarios to gate NPC lines and reputation reactions.
-- `tryTriggerLocation` opens the investigation overlay if the scenario has one; the moral `DialogueBox` only opens once `cluesFound ⊇ requiredClues` **and** `challengeDone`.
-- All new state is in the existing `SaveState` so Continue keeps working.
-
-### 3. Scanner (new `ScannerOverlay.tsx`)
-
-- Press **S** to toggle. Dark radial mask + scan line over the current viewport.
-- Nearby `Interactable`s highlight; the closest shows a readout ("Emotional stress: high", "Power cell: 12%", "Footprint: size 42, wet"). Readouts describe facts only — never say which choice is right.
-- Companion drone can spend a "query" to add analysis ("Probability of deception: 61%"). Optional, never prescriptive; sometimes the drone's logical read conflicts with what NPCs say.
-
-### 4. Interaction system (`GameWorld.tsx` + new `Interactable.tsx`)
-
-- Render `Interactable`s at their world positions inside each location.
-- When the player is within radius, show a floating "▸ E · INSPECT" prompt (matches existing pixel-font style).
-- Pressing **E** either:
-  - logs a clue (toast + entry in the objective panel),
-  - opens a short NPC info dialogue via the existing `DialogueBox` but with `effects` disabled (info-only stages, no morality delta), or
-  - launches the mini-challenge.
-
-### 5. Mini-challenges (new `Challenge*.tsx`, reused across scenarios)
-
-Four small, reusable minigames — all pixel-art, keyboard-only, 30–90s:
-
-- **Rewire** — connect matching colored nodes on a grid without crossing.
-- **Hack** — Simon-style sequence you replay from a scanned pattern.
-- **Align** — rotate signal dishes so waveforms match.
-- **Lockpick** — timed rhythm press when a moving marker hits the sweet spot.
-
-Each challenge exports the same `{ onComplete, onFail }` interface so scenarios can slot any of them.
-
-### 6. Objective / clue HUD (new `ObjectivePanel.tsx`)
-
-Top-center holographic strip: current objective + clue counter `2 / 4`. Clicking (or pressing **Tab**) expands a log of clues with their descriptions. Uses existing cyan/pink pixel styling.
-
-### 7. Consequences & reputation (`useGameState.ts` + scenarios)
-
-- After a moral choice, write a `worldFlags[scenarioId] = outcomeTag` and, when relevant, an NPC memory entry `npcMemory[npcId] = "helped" | "ignored" | "lied"`.
-- New scenarios read those flags:
-  - Gated dialogue lines (`stage.choices` filtered by a `showIf(flags)` predicate — additive, existing choices keep rendering).
-  - Cameo NPCs return in later days with lines that reference the past.
-- Reputation already exists; extend its effect: NPCs with `trust < threshold` hide some `Interactable`s (their `requiresClueId` becomes `requiresReputation`).
-
-### 8. World immersion (extend `GameWorld.tsx`)
-
-Small additions to make the city feel active without new systems:
-
-- Ambient NPC sprites that walk, pause at stalls, and react (turn head) when the player passes.
-- Idle animations on existing props (sparking wires, flickering signs already exist — reuse).
-- Emergency events (siren sweep + red tint) triggered when a scenario's `worldFlags` demand it.
-
-### 9. Content migration plan
-
-- **Day 1** rewritten fully to the new loop as the vertical slice (Neon Alley = broken drone investigation with rewire challenge; Hologram Market = discrimination scene with witness + camera scan; Maglev Station = fare-bypass with hack challenge).
-- **Days 2–5** migrate one location at a time; any scenario still using the old `stages`-only flow keeps working via the compatibility path.
-- Two Day-1 flags (`helped_drone`, `outed_cyborg`) are consumed by Day 3 and Day 5 respectively to prove long-term consequences end-to-end.
-
-## Files touched
-
-- **New**: `src/components/game/ScannerOverlay.tsx`, `Interactable.tsx`, `ObjectivePanel.tsx`, `challenges/Rewire.tsx`, `challenges/Hack.tsx`, `challenges/Align.tsx`, `challenges/Lockpick.tsx`, `src/game/investigation.ts` (helpers).
-- **Edited**: `src/game/types.ts`, `src/game/scenarios.ts` (Day 1 rewrite + optional field for others), `src/game/useGameState.ts` (investigation state + flags + save shape v3 with migration from v2), `src/components/game/GameWorld.tsx` (render interactables, ambient NPCs, event tint), `src/components/game/Game.tsx` (wire overlays), `src/components/game/InfoPanel.tsx` (document S / E / Tab), `src/components/game/AICompanion.tsx` (drone "analyze" action).
-
-## Explicitly unchanged
-
-Story beats, endings and their names, morality math, reputation math, save/continue, menus, credits, intro/charging/ending cutscenes, pixel-art robot & drone sprites, day structure, dialogue box visuals, and existing scenario texts (dialogue text is reused as the final "moral decision" stage inside the new loop).
-
-## Out of scope
-
-Combat, enemies, weapons, open world, platforming, inventory economy, new art direction.
-
-## Open questions
-
-1. Ship the redesign to **all 5 days at once**, or land Day 1 as a playable vertical slice first and migrate Days 2–5 in a follow-up?
-2. Should the scanner be **always-on passive** (highlights when near) or **manual toggle with S** (more game-feel, slightly more friction)?
-3. For the mini-challenges: **all four** kinds, or start with **rewire + hack** only and add the others later?
+Scope is large — expect this to be built across multiple turns.
