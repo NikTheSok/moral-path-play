@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import type { Investigation, Interactable } from "@/game/investigation";
+import type { Investigation, Interactable, Badge } from "@/game/investigation";
 import { SequenceChallenge } from "./SequenceChallenge";
 import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
 import { BatteryChallenge } from "./BatteryChallenge";
 import { CircuitChallenge } from "./CircuitChallenge";
+import { MultiPickChallenge } from "./challenges/MultiPickChallenge";
+import { SortChallenge } from "./challenges/SortChallenge";
+import { AssembleChallenge } from "./challenges/AssembleChallenge";
+import { OrderChallenge } from "./challenges/OrderChallenge";
+import { CelebrationChallenge } from "./challenges/CelebrationChallenge";
+import { BadgeAward } from "./BadgeAward";
 
 interface Props {
   investigation: Investigation;
-  onComplete: (entry?: string) => void;
+  onComplete: (entry?: string, badge?: Badge) => void;
   onAbort: () => void;
 }
 
@@ -32,13 +38,14 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const [inspecting, setInspecting] = useState<Interactable | null>(null);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeDone, setChallengeDone] = useState(!investigation.challenge);
+  const [showBadge, setShowBadge] = useState(false);
 
-  // Reset when the investigation changes
   useEffect(() => {
     setLogged(new Set());
     setInspecting(null);
     setChallengeOpen(false);
     setChallengeDone(!investigation.challenge);
+    setShowBadge(false);
   }, [investigation.scenarioId, investigation.challenge]);
 
   const cluesById = useMemo(() => {
@@ -66,6 +73,14 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     }
   };
 
+  const handleChallengeComplete = () => {
+    setChallengeDone(true);
+    setChallengeOpen(false);
+    if (investigation.badge) setShowBadge(true);
+  };
+
+  const ch = investigation.challenge;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -77,11 +92,10 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           "repeating-linear-gradient(0deg, transparent 0 2px, rgba(60,232,255,0.05) 2px 3px)",
       }}
     >
-      {/* Top bar */}
       <div className="sticky top-0 z-10 bg-black/90 border-b-2 border-cyan-400/70 px-4 py-3 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="pixel-font text-[9px] tracking-[0.35em] text-pink-400 mb-1">
-            ▸ INVESTIGATION MODE
+            ▸ LEARNING CHALLENGE
           </div>
           <div className="pixel-font text-[11px] md:text-[12px] text-cyan-100 leading-relaxed">
             {investigation.objective}
@@ -93,7 +107,7 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
         </div>
         <button
           onClick={onAbort}
-          title="Leave — walk away without confronting"
+          title="Leave — walk away"
           className="pixel-font w-9 h-9 grid place-items-center bg-black text-pink-300 border-2 border-pink-400/70 hover:bg-pink-400/15 hover:text-pink-200"
         >
           <X size={16} />
@@ -101,10 +115,9 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
       </div>
 
       <div className="max-w-4xl mx-auto p-4 md:p-6 grid gap-6 md:grid-cols-[1fr_260px]">
-        {/* Interactables */}
         <div>
           <div className="pixel-font text-[9px] tracking-[0.3em] text-cyan-300/80 mb-3">
-            ▸ SCENE — INSPECT ELEMENTS
+            ▸ OBSERVE — TALK TO PEOPLE, LOOK AROUND
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {investigation.interactables.map((it) => {
@@ -134,7 +147,7 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
                         {it.label}
                       </div>
                       <div className="pixel-font text-[9px] text-cyan-300/60 leading-relaxed">
-                        {gated ? "Requires more information." : it.hint}
+                        {gated ? "Do the other steps first." : it.hint}
                       </div>
                     </div>
                   </div>
@@ -143,11 +156,10 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
             })}
           </div>
 
-          {/* Challenge slot */}
-          {investigation.challenge && (
+          {ch && (
             <div className="mt-6">
               <div className="pixel-font text-[9px] tracking-[0.3em] text-cyan-300/80 mb-3">
-                ▸ CHALLENGE
+                ▸ LEARNING CHALLENGE
               </div>
               <button
                 onClick={() => challengeUnlocked && !challengeDone && setChallengeOpen(true)}
@@ -168,7 +180,7 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-2xl leading-none">⚙️</div>
+                  <div className="text-2xl leading-none">🎯</div>
                   <div className="flex-1">
                     <div
                       className="pixel-font text-[8px] tracking-[0.3em] mb-1"
@@ -176,15 +188,9 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
                     >
                       {challengeDone ? "✓ COMPLETE" : challengeUnlocked ? "▸ READY" : "▸ LOCKED"}
                     </div>
-                    <div className="pixel-font text-[11px] text-cyan-100">
-                      {investigation.challenge.label}
-                    </div>
+                    <div className="pixel-font text-[11px] text-cyan-100">{ch.label}</div>
                     <div className="pixel-font text-[9px] text-cyan-300/60 mt-1">
-                      {challengeDone
-                        ? "Objective met."
-                        : challengeUnlocked
-                        ? "Match the transmitted pattern."
-                        : "Gather more clues to unlock."}
+                      {challengeDone ? "Nice work." : challengeUnlocked ? "Tap to begin." : "Observe more to unlock."}
                     </div>
                   </div>
                 </div>
@@ -192,28 +198,26 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
             </div>
           )}
 
-          {/* Proceed */}
           <div className="mt-6 flex justify-end">
             <button
-              onClick={() => onComplete(investigation.journalEntry)}
+              onClick={() => onComplete(investigation.journalEntry, investigation.badge)}
               disabled={!canProceed}
               className="pixel-font text-[11px] tracking-widest px-5 py-3 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300 disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ boxShadow: canProceed ? "0 0 18px rgba(60,232,255,0.6)" : "none" }}
             >
-              ▶ CONFRONT — MAKE YOUR CHOICE
+              ▶ TALK IT OVER
             </button>
           </div>
         </div>
 
-        {/* Clue log sidebar */}
         <aside className="bg-black/70 border-2 border-cyan-400/50 p-3 h-fit md:sticky md:top-24"
           style={{ boxShadow: "0 0 12px rgba(60,232,255,0.25)" }}>
           <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-2">
-            ▸ CLUE LOG
+            ▸ WHAT YOU LEARNED
           </div>
           {logged.size === 0 && (
             <div className="pixel-font text-[9px] text-cyan-300/50 leading-relaxed">
-              Nothing logged yet. Inspect the scene to record evidence.
+              Nothing yet. Talk to people and look around.
             </div>
           )}
           <ul className="space-y-2">
@@ -231,13 +235,12 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           </ul>
           {logged.size > 0 && logged.size < investigation.requiredClueIds.length && (
             <div className="pixel-font text-[8px] text-pink-300/70 tracking-widest mt-3">
-              ▸ MORE EVIDENCE REQUIRED
+              ▸ KEEP LOOKING
             </div>
           )}
         </aside>
       </div>
 
-      {/* Inspect modal */}
       <AnimatePresence>
         {inspecting && (
           <motion.div
@@ -255,11 +258,6 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
               className="relative bg-black border-2 border-cyan-400 p-5 max-w-md w-full"
               style={{ boxShadow: "0 0 32px rgba(60,232,255,0.5)" }}
             >
-              <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-pink-400" />
-              <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-pink-400" />
-              <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-pink-400" />
-              <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-pink-400" />
-
               <div className="flex items-center gap-3 mb-3">
                 <div className="text-3xl">{inspecting.glyph}</div>
                 <div>
@@ -274,9 +272,7 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
               </p>
               {inspecting.yieldsClueId && cluesById[inspecting.yieldsClueId] && (
                 <div className="mt-3 border-t-2 border-cyan-400/30 pt-3">
-                  <div className="pixel-font text-[9px] tracking-widest text-green-400 mb-1">
-                    + CLUE LOGGED
-                  </div>
+                  <div className="pixel-font text-[9px] tracking-widest text-green-400 mb-1">+ LEARNED</div>
                   <div className="pixel-font text-[10px] text-cyan-100">
                     {cluesById[inspecting.yieldsClueId].label}
                   </div>
@@ -295,55 +291,100 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
         )}
       </AnimatePresence>
 
-      {/* Challenge modal */}
       <AnimatePresence>
-        {challengeOpen && investigation.challenge && (
+        {challengeOpen && ch && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-20 bg-black/80 flex items-center justify-center p-4"
           >
-            {investigation.challenge.kind === "sequence" && (
+            {ch.kind === "sequence" && (
               <SequenceChallenge
-                size={investigation.challenge.size ?? 4}
-                label={investigation.challenge.label}
-                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                size={ch.size ?? 4}
+                label={ch.label}
+                onComplete={handleChallengeComplete}
                 onCancel={() => setChallengeOpen(false)}
               />
             )}
-            {investigation.challenge.kind === "hidden-object" && investigation.challenge.objects && investigation.challenge.correctObjectId && (
+            {ch.kind === "hidden-object" && ch.objects && ch.correctObjectId && (
               <HiddenObjectChallenge
-                label={investigation.challenge.label}
-                intro={investigation.challenge.intro}
-                objects={investigation.challenge.objects}
-                correctId={investigation.challenge.correctObjectId}
-                successLine={investigation.challenge.successLine}
-                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                label={ch.label} intro={ch.intro}
+                objects={ch.objects} correctId={ch.correctObjectId}
+                successLine={ch.successLine}
+                onComplete={handleChallengeComplete}
                 onCancel={() => setChallengeOpen(false)}
               />
             )}
-            {investigation.challenge.kind === "battery" && investigation.challenge.batteries && investigation.challenge.correctBatteryId && (
+            {ch.kind === "battery" && ch.batteries && ch.correctBatteryId && (
               <BatteryChallenge
-                label={investigation.challenge.label}
-                intro={investigation.challenge.intro}
-                batteries={investigation.challenge.batteries}
-                correctId={investigation.challenge.correctBatteryId}
-                successLine={investigation.challenge.batterySuccessLine}
-                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                label={ch.label} intro={ch.intro}
+                batteries={ch.batteries} correctId={ch.correctBatteryId}
+                successLine={ch.batterySuccessLine}
+                onComplete={handleChallengeComplete}
                 onCancel={() => setChallengeOpen(false)}
               />
             )}
-            {investigation.challenge.kind === "circuit" && investigation.challenge.nodes && (
+            {ch.kind === "circuit" && ch.nodes && (
               <CircuitChallenge
-                label={investigation.challenge.label}
-                intro={investigation.challenge.intro}
-                nodes={investigation.challenge.nodes}
-                onComplete={() => { setChallengeDone(true); setChallengeOpen(false); }}
+                label={ch.label} intro={ch.intro} nodes={ch.nodes}
+                onComplete={handleChallengeComplete}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {ch.kind === "multi-pick" && ch.pickItems && ch.pickTargetIds && (
+              <MultiPickChallenge
+                label={ch.label} intro={ch.intro}
+                items={ch.pickItems} targetIds={ch.pickTargetIds}
+                successLine={ch.successLine}
+                onComplete={handleChallengeComplete}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {ch.kind === "sort" && ch.sortBins && ch.sortItems && (
+              <SortChallenge
+                label={ch.label} intro={ch.intro}
+                bins={ch.sortBins} items={ch.sortItems}
+                successLine={ch.successLine}
+                onComplete={handleChallengeComplete}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {ch.kind === "assemble" && ch.parts && ch.slots && (
+              <AssembleChallenge
+                label={ch.label} intro={ch.intro}
+                parts={ch.parts} slots={ch.slots}
+                backdrop={ch.assembleBackdrop}
+                successLine={ch.successLine}
+                onComplete={handleChallengeComplete}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {ch.kind === "order" && ch.orderItems && (
+              <OrderChallenge
+                label={ch.label} intro={ch.intro}
+                prompt={ch.orderPrompt} items={ch.orderItems}
+                successLine={ch.successLine}
+                onComplete={handleChallengeComplete}
+                onCancel={() => setChallengeOpen(false)}
+              />
+            )}
+            {ch.kind === "celebration" && ch.celebrationMoments && ch.celebrationFinal && (
+              <CelebrationChallenge
+                label={ch.label} intro={ch.intro}
+                moments={ch.celebrationMoments}
+                finalLine={ch.celebrationFinal}
+                onComplete={handleChallengeComplete}
                 onCancel={() => setChallengeOpen(false)}
               />
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showBadge && investigation.badge && (
+          <BadgeAward badge={investigation.badge} onDone={() => setShowBadge(false)} />
         )}
       </AnimatePresence>
     </motion.div>
