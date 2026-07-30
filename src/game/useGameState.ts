@@ -214,26 +214,53 @@ export function useGameState() {
     }
   }, [activeScenario, pendingReply, activeInvestigationId, day, time, completedScenarios]);
 
-  const completeInvestigation = useCallback((entry?: string) => {
-    if (entry && pendingScenario) {
+  const applyResult = useCallback((r: EncounterResult) => {
+    const deltas = deltasForResult(day, r);
+    setMorality((m) => {
+      const next = { ...m };
+      (Object.keys(deltas) as MoralityKey[]).forEach((k) => {
+        next[k] = Math.max(0, (next[k] ?? 0) + (deltas[k] ?? 0));
+      });
+      return next;
+    });
+    setEncounters((prev) => [...prev, { day, scenarioId: r.scenarioId, quality: r.quality, mistakes: r.mistakes }]);
+  }, [day]);
+
+  const completeInvestigation = useCallback((r: EncounterResult) => {
+    applyResult(r);
+    if (r.badge) setBadges((b) => (b.includes(r.badge!.name) ? b : [...b, r.badge!.name]));
+    if (r.entry && pendingScenario) {
       const scenarioId = pendingScenario.id;
       setJournalEntries((prev) =>
         prev.some((j) => j.scenarioId === scenarioId)
           ? prev
-          : [...prev, { day, scenarioId, text: entry }]
+          : [...prev, { day, scenarioId, text: r.entry! }]
       );
     }
     if (!pendingScenario) { setActiveInvestigationId(null); return; }
     setActiveScenario(pendingScenario);
     setStageId(pendingScenario.startStage);
+    setPendingReply({ text: NPC_REACTION[r.quality], nextStage: pendingScenario.startStage });
     setPendingScenario(null);
     setActiveInvestigationId(null);
-  }, [pendingScenario, day]);
+  }, [pendingScenario, day, applyResult]);
 
-  const abortInvestigation = useCallback(() => {
+  /** The player chose to ignore this person. Story continues; the record remembers. */
+  const abortInvestigation = useCallback((r: EncounterResult) => {
+    applyResult(r);
+    const sid = r.scenarioId;
+    setIgnoredScenarios((prev) => (prev.includes(sid) ? prev : [...prev, sid]));
+    setCompletedScenarios((c) => new Set(c).add(sid));
+    setJournalEntries((prev) =>
+      prev.some((j) => j.scenarioId === sid)
+        ? prev
+        : [...prev, { day, scenarioId: sid, text: "They asked. I kept walking. The request is still logged in me." }]
+    );
+    setLastChoiceLabel("Walked away from someone who asked for help");
     setActiveInvestigationId(null);
     setPendingScenario(null);
-  }, []);
+  }, [applyResult, day]);
+
 
 
   const makeChoice = useCallback((choice: StageChoice) => {
