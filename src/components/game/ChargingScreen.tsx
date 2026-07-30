@@ -77,7 +77,8 @@ export function ChargingScreen({ day, morality, isFinal, journalEntries = [], on
       }} />
 
       {/* === LEFT: log + actions === */}
-      <div className="relative z-10 flex-1 flex flex-col items-start justify-center px-6 md:px-14 max-w-2xl">
+      <div className="relative z-10 flex-1 flex flex-col max-w-2xl min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 md:px-14 py-8 flex flex-col items-start justify-start">
         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
           <div className="pixel-font text-[10px] tracking-[0.5em] text-cyan-300 mb-3" style={{ textShadow: "0 0 10px #3ce8ff" }}>
             ▸ CHARGING BAY 7 · LOG {String(day).padStart(2, "0")}
@@ -123,7 +124,7 @@ export function ChargingScreen({ day, morality, isFinal, journalEntries = [], on
         {journalEntries.length > 0 && (
           <motion.div
             initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
-            className="mt-3 w-full max-w-md border-2 border-cyan-400/40 bg-black/60 p-3"
+            className="mt-3 w-full max-w-md border-2 border-cyan-400/40 bg-black/60 p-3 max-h-48 overflow-y-auto"
           >
             <div className="pixel-font text-[9px] tracking-widest text-cyan-300/80 mb-2">▸ ROBOT JOURNAL · DAY {day}</div>
             <ul className="space-y-2">
@@ -150,7 +151,12 @@ export function ChargingScreen({ day, morality, isFinal, journalEntries = [], on
           <MoralityPanel morality={morality} />
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="mt-8 flex gap-3">
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
+          className="shrink-0 flex flex-wrap gap-3 px-6 md:px-14 py-4 border-t-2 border-cyan-400/30 bg-black/85 backdrop-blur-sm"
+        >
           <button
             onClick={onContinue}
             className="pixel-font text-[11px] tracking-widest px-6 py-3 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300"
