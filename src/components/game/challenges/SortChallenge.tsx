@@ -8,7 +8,7 @@ interface Props {
   bins: SortBin[];
   items: SortItem[];
   successLine?: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -25,9 +25,12 @@ function useShuffled<T>(items: T[]): T[] {
 
 export function SortChallenge({ label, intro, bins, items, successLine, onComplete, onCancel }: Props) {
   const queue = useShuffled(items);
-  const [placed, setPlaced] = useState<Record<string, string[]>>({}); // binId -> item ids
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [idx, setIdx] = useState(0);
-  const [message, setMessage] = useState<string | null>(intro ?? null);
+  const [mistakes, setMistakes] = useState(0);
+  const [message, setMessage] = useState<string | null>(
+    intro ?? "Every choice is final. Read the label before you drop it."
+  );
   const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
 
@@ -35,20 +38,35 @@ export function SortChallenge({ label, intro, bins, items, successLine, onComple
 
   const drop = (binId: string) => {
     if (!current || done) return;
-    if (current.binId === binId) {
-      setPlaced((p) => ({ ...p, [binId]: [...(p[binId] ?? []), current.id] }));
-      setMessage(`${current.label} → ${bins.find((b) => b.id === binId)?.label}. Correct.`);
-      setTone("neutral");
-      const nextIdx = idx + 1;
-      setIdx(nextIdx);
-      if (nextIdx >= queue.length) {
-        setMessage(successLine ?? "All sorted.");
+    const correct = current.binId === binId;
+    const nextMistakes = correct ? mistakes : mistakes + 1;
+    if (!correct) setMistakes(nextMistakes);
+    setCounts((c) => ({ ...c, [binId]: (c[binId] ?? 0) + 1 }));
+
+    const nextIdx = idx + 1;
+    setIdx(nextIdx);
+
+    if (nextIdx >= queue.length) {
+      const score = queue.length - nextMistakes;
+      setDone(true);
+      if (nextMistakes === 0) {
+        setMessage(successLine ?? "Everything in its place. Flawless.");
         setTone("success");
-        setDone(true);
-        window.setTimeout(onComplete, 1400);
+      } else {
+        setMessage(
+          `${score}/${queue.length} sorted correctly. ${nextMistakes} item${nextMistakes > 1 ? "s" : ""} ended up in the wrong place — someone will have to redo that.`
+        );
+        setTone("wrong");
       }
+      window.setTimeout(() => onComplete(nextMistakes), 2000);
+      return;
+    }
+
+    if (correct) {
+      setMessage("Placed.");
+      setTone("neutral");
     } else {
-      setMessage(current.wrongNote ?? "Wrong bin. Try again.");
+      setMessage(current.wrongNote ?? "That didn't feel right... but it's done now.");
       setTone("wrong");
     }
   };
@@ -58,10 +76,10 @@ export function SortChallenge({ label, intro, bins, items, successLine, onComple
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full"
+      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       style={{ boxShadow: "0 0 32px rgba(60,232,255,0.5)" }}
     >
-      <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ SORT</div>
+      <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ SORT · NO UNDO</div>
       <div className="pixel-font text-[12px] text-cyan-100 mb-3">{label.toUpperCase()}</div>
 
       {message && (
@@ -95,7 +113,7 @@ export function SortChallenge({ label, intro, bins, items, successLine, onComple
             <span className="pixel-font text-[10px] text-cyan-100">{current.label}</span>
           </motion.div>
         ) : (
-          <span className="pixel-font text-[10px] text-green-300 tracking-widest">✓ COMPLETE</span>
+          <span className="pixel-font text-[10px] text-green-300 tracking-widest">✓ DONE</span>
         )}
       </div>
 
@@ -112,7 +130,7 @@ export function SortChallenge({ label, intro, bins, items, successLine, onComple
             <div className="text-2xl">🗑️</div>
             <div className="pixel-font text-[10px]" style={{ color: b.color }}>{b.label}</div>
             {b.hint && <div className="pixel-font text-[8px] text-cyan-300/60 text-center leading-tight">{b.hint}</div>}
-            <div className="pixel-font text-[8px] text-cyan-300/50">{(placed[b.id]?.length ?? 0)}</div>
+            <div className="pixel-font text-[8px] text-cyan-300/50">{counts[b.id] ?? 0}</div>
           </button>
         ))}
       </div>

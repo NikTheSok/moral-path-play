@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import type { Investigation, Interactable, Badge } from "@/game/investigation";
+import type { Investigation, Interactable, EncounterResult } from "@/game/investigation";
+import { gradeEncounter } from "@/game/investigation";
 import { SequenceChallenge } from "./SequenceChallenge";
 import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
 import { BatteryChallenge } from "./BatteryChallenge";
@@ -15,8 +16,8 @@ import { BadgeAward } from "./BadgeAward";
 
 interface Props {
   investigation: Investigation;
-  onComplete: (entry?: string, badge?: Badge) => void;
-  onAbort: () => void;
+  onComplete: (result: EncounterResult) => void;
+  onAbort: (result: EncounterResult) => void;
 }
 
 const KIND_LABEL: Record<Interactable["kind"], string> = {
@@ -35,17 +36,23 @@ const KIND_COLOR: Record<Interactable["kind"], string> = {
 
 export function InvestigationOverlay({ investigation, onComplete, onAbort }: Props) {
   const [logged, setLogged] = useState<Set<string>>(new Set());
+  const [visited, setVisited] = useState<Set<string>>(new Set());
   const [inspecting, setInspecting] = useState<Interactable | null>(null);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeDone, setChallengeDone] = useState(!investigation.challenge);
+  const [mistakes, setMistakes] = useState(0);
   const [showBadge, setShowBadge] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   useEffect(() => {
     setLogged(new Set());
+    setVisited(new Set());
     setInspecting(null);
     setChallengeOpen(false);
     setChallengeDone(!investigation.challenge);
+    setMistakes(0);
     setShowBadge(false);
+    setConfirmLeave(false);
   }, [investigation.scenarioId, investigation.challenge]);
 
   const cluesById = useMemo(() => {
@@ -60,9 +67,18 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     (investigation.challenge.unlockClues ?? []).every((c) => logged.has(c));
   const canProceed = requiredMet && challengeDone;
 
+  /** Did the player look at every available lead, including optional ones? */
+  const exploredAll = investigation.interactables.every(
+    (it) => visited.has(it.id) || (it.requiresClueId && !logged.has(it.requiresClueId))
+  );
+  const skippedLeads = investigation.interactables.filter(
+    (it) => !visited.has(it.id) && !(it.requiresClueId && !logged.has(it.requiresClueId))
+  ).length;
+
   const inspect = (it: Interactable) => {
     if (it.requiresClueId && !logged.has(it.requiresClueId)) return;
     setInspecting(it);
+    setVisited((v) => new Set(v).add(it.id));
     if (it.yieldsClueId) {
       setLogged((prev) => {
         if (prev.has(it.yieldsClueId!)) return prev;
@@ -73,13 +89,36 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     }
   };
 
-  const handleChallengeComplete = () => {
+  const handleChallengeComplete = (m: number) => {
+    setMistakes((prev) => prev + m);
     setChallengeDone(true);
     setChallengeOpen(false);
-    if (investigation.badge) setShowBadge(true);
+    if (investigation.badge && m === 0) setShowBadge(true);
+  };
+
+  const finish = () => {
+    const quality = gradeEncounter(mistakes, exploredAll);
+    onComplete({
+      scenarioId: investigation.scenarioId,
+      quality,
+      mistakes,
+      exploredAll,
+      entry: investigation.journalEntry,
+      badge: quality === "perfect" || quality === "good" ? investigation.badge : undefined,
+    });
+  };
+
+  const walkAway = () => {
+    onAbort({
+      scenarioId: investigation.scenarioId,
+      quality: "ignored",
+      mistakes,
+      exploredAll: false,
+    });
   };
 
   const ch = investigation.challenge;
+
 
   return (
     <motion.div
@@ -106,12 +145,13 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           CLUES {logged.size}/{investigation.requiredClueIds.length}
         </div>
         <button
-          onClick={onAbort}
-          title="Leave — walk away"
+          onClick={() => setConfirmLeave(true)}
+          title="Ignore this person and walk away"
           className="pixel-font w-9 h-9 grid place-items-center bg-black text-pink-300 border-2 border-pink-400/70 hover:bg-pink-400/15 hover:text-pink-200"
         >
           <X size={16} />
         </button>
+
       </div>
 
       <div className="max-w-4xl mx-auto p-4 md:p-6 grid gap-6 md:grid-cols-[1fr_260px]">
@@ -198,9 +238,15 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
             </div>
           )}
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex flex-wrap gap-3 justify-between items-center">
             <button
-              onClick={() => onComplete(investigation.journalEntry, investigation.badge)}
+              onClick={() => setConfirmLeave(true)}
+              className="pixel-font text-[10px] tracking-widest px-4 py-2.5 border-2 border-pink-400/60 text-pink-300 hover:bg-pink-400/10"
+            >
+              ✕ IGNORE & WALK AWAY
+            </button>
+            <button
+              onClick={finish}
               disabled={!canProceed}
               className="pixel-font text-[11px] tracking-widest px-5 py-3 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300 disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ boxShadow: canProceed ? "0 0 18px rgba(60,232,255,0.6)" : "none" }}
@@ -208,7 +254,18 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
               ▶ TALK IT OVER
             </button>
           </div>
+          {!canProceed && (
+            <div className="pixel-font text-[9px] text-cyan-300/50 mt-2 text-right leading-relaxed">
+              You can't help someone you haven't listened to.
+            </div>
+          )}
+          {canProceed && skippedLeads > 0 && (
+            <div className="pixel-font text-[9px] text-pink-300/70 mt-2 text-right leading-relaxed">
+              {skippedLeads} lead{skippedLeads > 1 ? "s" : ""} still unchecked. You can leave it — it will be noted.
+            </div>
+          )}
         </div>
+
 
         <aside className="bg-black/70 border-2 border-cyan-400/50 p-3 h-fit md:sticky md:top-24"
           style={{ boxShadow: "0 0 12px rgba(60,232,255,0.25)" }}>
@@ -381,6 +438,45 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmLeave && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-30 bg-black/85 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ y: 14, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="bg-black border-2 border-pink-400 p-5 max-w-md w-full"
+              style={{ boxShadow: "0 0 32px rgba(255,58,138,0.5)" }}
+            >
+              <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-2">▸ WALK AWAY?</div>
+              <p className="pixel-font text-[10px] leading-[1.9] text-cyan-100">
+                They asked you for help. If you leave now, they'll manage on their own — or they won't.
+                Nobody will stop you. It will stay in your record.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2 justify-end">
+                <button
+                  onClick={() => setConfirmLeave(false)}
+                  className="pixel-font text-[10px] tracking-widest px-4 py-2 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300"
+                >
+                  STAY AND HELP
+                </button>
+                <button
+                  onClick={walkAway}
+                  className="pixel-font text-[10px] tracking-widest px-4 py-2 border-2 border-pink-400/70 text-pink-300 hover:bg-pink-400/10"
+                >
+                  WALK AWAY
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       <AnimatePresence>
         {showBadge && investigation.badge && (

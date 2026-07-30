@@ -7,7 +7,7 @@ interface Props {
   intro?: string;
   moments: CelebrationMoment[];
   finalLine: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -16,7 +16,7 @@ export function CelebrationChallenge({ label, intro, moments, finalLine, onCompl
   const [showFinal, setShowFinal] = useState(false);
 
   const advance = () => {
-    if (showFinal) { onComplete(); return; }
+    if (showFinal) { onComplete(0); return; }
     if (i + 1 >= moments.length) {
       setShowFinal(true);
     } else {

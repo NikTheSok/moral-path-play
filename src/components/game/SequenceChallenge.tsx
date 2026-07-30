@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 interface Props {
   size: number;                 // number of steps in the pattern
   label: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -67,7 +67,7 @@ export function SequenceChallenge({ size, label, onComplete, onCancel }: Props) 
       const nextProg = progress + 1;
       if (nextProg >= pattern.length) {
         setPhase("done");
-        window.setTimeout(onComplete, 700);
+        window.setTimeout(() => onComplete(attempt), 700);
       } else {
         setProgress(nextProg);
       }

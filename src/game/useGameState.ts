@@ -1,7 +1,44 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DayNumber, Morality, Scenario, Screen, StageChoice, TimePeriod } from "./types";
+import type { DayNumber, Morality, MoralityKey, Scenario, Screen, StageChoice, TimePeriod } from "./types";
 import { DAYS, SCENARIOS, scenarioFor, timeForLocation } from "./scenarios";
-import { investigationFor } from "./investigation";
+import { investigationFor, type EncounterResult, type EncounterQuality } from "./investigation";
+
+/** Which trait each day is teaching. */
+const DAY_TRAITS: Record<DayNumber, MoralityKey[]> = {
+  1: ["empathy"],
+  2: ["responsibility"],
+  3: ["honesty"],
+  4: ["honesty", "empathy"],
+  5: ["courage"],
+};
+
+/** Morality deltas earned by how the encounter was handled. */
+function deltasForResult(day: DayNumber, r: EncounterResult): Partial<Morality> {
+  const traits = DAY_TRAITS[day];
+  const out: Partial<Morality> = {};
+  const bump = (k: MoralityKey, v: number) => { out[k] = (out[k] ?? 0) + v; };
+
+  if (r.quality === "ignored") {
+    traits.forEach((t) => bump(t, -1));
+    bump("empathy", -1);
+    bump("selfishness", 2);
+    return out;
+  }
+
+  const gain: Record<Exclude<EncounterQuality, "ignored">, number> = {
+    perfect: 3, good: 2, sloppy: 1, poor: -1,
+  };
+  const base = gain[r.quality as Exclude<EncounterQuality, "ignored">];
+  traits.forEach((t) => bump(t, base));
+  if (r.quality === "perfect") bump("responsibility", 1);
+  if (r.quality === "poor") bump("selfishness", 1);
+  if (!r.exploredAll && r.quality !== "poor") {
+    traits.forEach((t) => bump(t, -1));
+    bump("selfishness", 1);
+  }
+  return out;
+}
+
 
 const INITIAL_MORALITY: Morality = {
   empathy: 0, honesty: 0, responsibility: 0, courage: 0, selfishness: 0,
@@ -23,6 +60,23 @@ export interface JournalEntry {
   text: string;
 }
 
+export interface EncounterLog {
+  day: DayNumber;
+  scenarioId: string;
+  quality: EncounterQuality;
+  mistakes: number;
+}
+
+/** How the person reacts to how you handled their problem. */
+const NPC_REACTION: Record<EncounterQuality, string> = {
+  perfect: "\"That's exactly it — you actually paid attention. Thank you.\"",
+  good: "\"That worked. Took you a moment, but you got there. Thanks.\"",
+  sloppy: "\"...it's fine. It's mostly fine. I'll fix the rest myself.\"",
+  poor: "\"I don't think that fixed anything. But you tried, I guess.\"",
+  ignored: "\"Oh... maybe someone else will help.\"",
+};
+
+
 interface PendingReply {
   text: string;
   nextStage: string | null;
@@ -37,6 +91,9 @@ interface SaveState {
   completedScenarios: string[];
   lastChoiceLabel: string | null;
   journalEntries?: JournalEntry[];
+  encounters?: EncounterLog[];
+  badges?: string[];
+  ignoredScenarios?: string[];
 }
 
 function loadSave(): SaveState | null {
@@ -76,6 +133,9 @@ export function useGameState() {
   const [choiceLog, setChoiceLog] = useState<ChoiceLog[]>([]);
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [encounters, setEncounters] = useState<EncounterLog[]>([]);
+  const [badges, setBadges] = useState<string[]>([]);
+  const [ignoredScenarios, setIgnoredScenarios] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [lastChoiceLabel, setLastChoiceLabel] = useState<string | null>(null);
   const [hasSave, setHasSave] = useState<boolean>(() => hasSavedGame());
@@ -90,9 +150,12 @@ export function useGameState() {
       completedScenarios: Array.from(completedScenarios),
       lastChoiceLabel,
       journalEntries,
+      encounters,
+      badges,
+      ignoredScenarios,
     };
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(data)); setHasSave(true); } catch {}
-  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries]);
+  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries, encounters, badges, ignoredScenarios]);
 
   const reset = useCallback(() => {
     setScreen("menu");
@@ -122,6 +185,9 @@ export function useGameState() {
     setChoiceLog([]);
     setCompletedScenarios(new Set());
     setJournalEntries([]);
+    setEncounters([]);
+    setBadges([]);
+    setIgnoredScenarios([]);
     setLastChoiceLabel(null);
     setHasSave(false);
     setScreen("intro");
@@ -136,6 +202,9 @@ export function useGameState() {
     setChoiceLog(s.choiceLog ?? []);
     setCompletedScenarios(new Set(s.completedScenarios ?? []));
     setJournalEntries(s.journalEntries ?? []);
+    setEncounters(s.encounters ?? []);
+    setBadges(s.badges ?? []);
+    setIgnoredScenarios(s.ignoredScenarios ?? []);
     setLastChoiceLabel(s.lastChoiceLabel ?? null);
     setActiveScenario(null);
     setStageId(null);
@@ -177,26 +246,53 @@ export function useGameState() {
     }
   }, [activeScenario, pendingReply, activeInvestigationId, day, time, completedScenarios]);
 
-  const completeInvestigation = useCallback((entry?: string) => {
-    if (entry && pendingScenario) {
+  const applyResult = useCallback((r: EncounterResult) => {
+    const deltas = deltasForResult(day, r);
+    setMorality((m) => {
+      const next = { ...m };
+      (Object.keys(deltas) as MoralityKey[]).forEach((k) => {
+        next[k] = Math.max(0, (next[k] ?? 0) + (deltas[k] ?? 0));
+      });
+      return next;
+    });
+    setEncounters((prev) => [...prev, { day, scenarioId: r.scenarioId, quality: r.quality, mistakes: r.mistakes }]);
+  }, [day]);
+
+  const completeInvestigation = useCallback((r: EncounterResult) => {
+    applyResult(r);
+    if (r.badge) setBadges((b) => (b.includes(r.badge!.name) ? b : [...b, r.badge!.name]));
+    if (r.entry && pendingScenario) {
       const scenarioId = pendingScenario.id;
       setJournalEntries((prev) =>
         prev.some((j) => j.scenarioId === scenarioId)
           ? prev
-          : [...prev, { day, scenarioId, text: entry }]
+          : [...prev, { day, scenarioId, text: r.entry! }]
       );
     }
     if (!pendingScenario) { setActiveInvestigationId(null); return; }
     setActiveScenario(pendingScenario);
     setStageId(pendingScenario.startStage);
+    setPendingReply({ text: NPC_REACTION[r.quality], nextStage: pendingScenario.startStage });
     setPendingScenario(null);
     setActiveInvestigationId(null);
-  }, [pendingScenario, day]);
+  }, [pendingScenario, day, applyResult]);
 
-  const abortInvestigation = useCallback(() => {
+  /** The player chose to ignore this person. Story continues; the record remembers. */
+  const abortInvestigation = useCallback((r: EncounterResult) => {
+    applyResult(r);
+    const sid = r.scenarioId;
+    setIgnoredScenarios((prev) => (prev.includes(sid) ? prev : [...prev, sid]));
+    setCompletedScenarios((c) => new Set(c).add(sid));
+    setJournalEntries((prev) =>
+      prev.some((j) => j.scenarioId === sid)
+        ? prev
+        : [...prev, { day, scenarioId: sid, text: "They asked. I kept walking. The request is still logged in me." }]
+    );
+    setLastChoiceLabel("Walked away from someone who asked for help");
     setActiveInvestigationId(null);
     setPendingScenario(null);
-  }, []);
+  }, [applyResult, day]);
+
 
 
   const makeChoice = useCallback((choice: StageChoice) => {
@@ -285,6 +381,9 @@ export function useGameState() {
     choiceLog,
     completedScenarios,
     journalEntries,
+    encounters,
+    badges,
+    ignoredScenarios,
     lastChoiceLabel,
     hasSave,
     activeInvestigation,

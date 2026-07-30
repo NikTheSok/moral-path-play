@@ -9,14 +9,19 @@ interface Props {
   slots: AssembleSlot[];
   backdrop?: string;
   successLine?: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
+
+const MAX_ATTEMPTS = 3;
 
 export function AssembleChallenge({ label, intro, parts, slots, backdrop, successLine, onComplete, onCancel }: Props) {
   const [filled, setFilled] = useState<Record<string, string>>({}); // slotId -> partId
   const [selected, setSelected] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(intro ?? null);
+  const [attempts, setAttempts] = useState(0);
+  const [message, setMessage] = useState<string | null>(
+    intro ?? "Fit every part, then test the build. It won't tell you which piece is wrong."
+  );
   const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
 
@@ -25,30 +30,55 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
   const pickPart = (id: string) => {
     if (done || usedParts.has(id)) return;
     setSelected(id);
-    setMessage("Now place it on the correct slot.");
+    setMessage("Now choose a slot for it.");
     setTone("neutral");
   };
 
   const placeSlot = (slot: AssembleSlot) => {
-    if (done || !selected || filled[slot.id]) return;
-    if (slot.expectPartId === selected) {
-      const next = { ...filled, [slot.id]: selected };
-      setFilled(next);
-      setSelected(null);
-      setMessage(slot.filledNote ?? `${slot.label}: locked in.`);
-      setTone("neutral");
-      if (Object.keys(next).length === slots.length) {
-        setMessage(successLine ?? "Assembly complete.");
-        setTone("success");
-        setDone(true);
-        window.setTimeout(onComplete, 1400);
+    if (done) return;
+    if (!selected) {
+      // tapping a filled slot pulls the part back out
+      if (filled[slot.id]) {
+        setFilled((f) => {
+          const next = { ...f };
+          delete next[slot.id];
+          return next;
+        });
       }
-    } else {
-      setMessage(`That part doesn't belong in ${slot.label}.`);
-      setTone("wrong");
-      setSelected(null);
+      return;
     }
+    if (filled[slot.id]) return;
+    setFilled((f) => ({ ...f, [slot.id]: selected }));
+    setSelected(null);
+    setTone("neutral");
+    setMessage("Placed. Keep going — nothing is checked yet.");
   };
+
+  const test = () => {
+    if (done || Object.keys(filled).length !== slots.length) return;
+    const right = slots.filter((s) => filled[s.id] === s.expectPartId).length;
+    if (right === slots.length) {
+      setMessage(successLine ?? "It works. First try or not, it holds.");
+      setTone("success");
+      setDone(true);
+      window.setTimeout(() => onComplete(attempts), 1600);
+      return;
+    }
+    const used = attempts + 1;
+    setAttempts(used);
+    if (used >= MAX_ATTEMPTS) {
+      setMessage(`${right} of ${slots.length} parts sit right. It rattles, but it moves. Not your best work.`);
+      setTone("wrong");
+      setDone(true);
+      window.setTimeout(() => onComplete(used + (slots.length - right)), 2200);
+      return;
+    }
+    setMessage(
+      `${right} of ${slots.length} parts are in the right place. ${used >= 2 ? "Think about what each part actually does." : "Something is off — check the shapes and sizes."}`
+    );
+    setTone("wrong");
+  };
+
 
   return (
     <motion.div
@@ -94,10 +124,11 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
               <button
                 key={s.id}
                 onClick={() => placeSlot(s)}
-                disabled={done || !!part || !selected}
+                disabled={done}
+                title={part ? "Tap to remove this part" : undefined}
                 className={`aspect-square flex flex-col items-center justify-center border-2 p-2 transition ${
                   part
-                    ? "border-green-300 bg-green-400/10"
+                    ? "border-cyan-200 bg-cyan-400/10"
                     : selected
                     ? "border-pink-400/70 bg-pink-400/5 hover:bg-pink-400/15 animate-pulse"
                     : "border-cyan-400/40 bg-black/40"
@@ -106,8 +137,9 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
                 {part ? (
                   <>
                     <span className="text-3xl">{part.glyph}</span>
-                    <span className="pixel-font text-[8px] text-green-200 mt-1">{part.label}</span>
+                    <span className="pixel-font text-[8px] text-cyan-100 mt-1">{part.label}</span>
                   </>
+
                 ) : (
                   <>
                     <span className="text-2xl opacity-40">◻</span>
@@ -143,18 +175,28 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
         })}
       </div>
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div className="pixel-font text-[9px] text-cyan-300/60 tracking-widest">
-          BUILT {Object.keys(filled).length} / {slots.length}
+          BUILT {Object.keys(filled).length} / {slots.length} · TRIES LEFT {Math.max(0, MAX_ATTEMPTS - attempts)}
         </div>
-        <button
-          onClick={onCancel}
-          disabled={done}
-          className="pixel-font text-[9px] tracking-widest text-pink-300 hover:text-pink-200 border-2 border-pink-400/50 hover:border-pink-400 px-3 py-1.5 bg-black disabled:opacity-40"
-        >
-          STEP AWAY
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={test}
+            disabled={done || Object.keys(filled).length !== slots.length}
+            className="pixel-font text-[10px] tracking-widest px-4 py-2 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300 disabled:opacity-30"
+          >
+            ✓ TEST IT
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={done}
+            className="pixel-font text-[9px] tracking-widest text-pink-300 hover:text-pink-200 border-2 border-pink-400/50 hover:border-pink-400 px-3 py-1.5 bg-black disabled:opacity-40"
+          >
+            STEP AWAY
+          </button>
+        </div>
       </div>
     </motion.div>
   );
+
 }
