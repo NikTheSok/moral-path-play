@@ -60,6 +60,23 @@ export interface JournalEntry {
   text: string;
 }
 
+export interface EncounterLog {
+  day: DayNumber;
+  scenarioId: string;
+  quality: EncounterQuality;
+  mistakes: number;
+}
+
+/** How the person reacts to how you handled their problem. */
+const NPC_REACTION: Record<EncounterQuality, string> = {
+  perfect: "\"That's exactly it — you actually paid attention. Thank you.\"",
+  good: "\"That worked. Took you a moment, but you got there. Thanks.\"",
+  sloppy: "\"...it's fine. It's mostly fine. I'll fix the rest myself.\"",
+  poor: "\"I don't think that fixed anything. But you tried, I guess.\"",
+  ignored: "\"Oh... maybe someone else will help.\"",
+};
+
+
 interface PendingReply {
   text: string;
   nextStage: string | null;
