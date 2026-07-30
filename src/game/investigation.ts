@@ -173,6 +173,27 @@ export interface Investigation {
   badge?: Badge;
 }
 
+/** How well the player handled an encounter. Drives the morality rating. */
+export type EncounterQuality = "perfect" | "good" | "sloppy" | "poor" | "ignored";
+
+export interface EncounterResult {
+  scenarioId: string;
+  quality: EncounterQuality;
+  mistakes: number;
+  /** true when the player examined every available lead before acting */
+  exploredAll: boolean;
+  entry?: string;
+  badge?: Badge;
+}
+
+export function gradeEncounter(mistakes: number, exploredAll: boolean): EncounterQuality {
+  if (mistakes === 0 && exploredAll) return "perfect";
+  if (mistakes <= 1) return "good";
+  if (mistakes <= 3) return "sloppy";
+  return "poor";
+}
+
+
 /* ================================================================== */
 /*  DAY 1 — EMPATHY                                                    */
 /* ================================================================== */

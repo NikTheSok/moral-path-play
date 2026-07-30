@@ -8,7 +8,7 @@ interface Props {
   batteries: BatteryOption[];
   correctId: string;
   successLine?: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -18,6 +18,7 @@ export function BatteryChallenge({ label, intro, batteries, correctId, successLi
   const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
   const [shake, setShake] = useState(0);
+  const [wrongs, setWrongs] = useState(0);
 
   const insert = (b: BatteryOption) => {
     if (done) return;
@@ -26,9 +27,14 @@ export function BatteryChallenge({ label, intro, batteries, correctId, successLi
       setMessage(successLine ?? "The dog boots up.");
       setTone("success");
       setDone(true);
-      window.setTimeout(onComplete, 1500);
+      window.setTimeout(() => onComplete(wrongs), 1500);
     } else {
-      setMessage(b.wrongComment ?? "The dog stutters, then goes dark again.");
+      const w = wrongs + 1;
+      setWrongs(w);
+      setMessage(
+        (b.wrongComment ?? "The dog stutters, then goes dark again.") +
+          (w >= 2 ? " Check the numbers, not the size." : "")
+      );
       setTone("wrong");
       setShake((n) => n + 1);
     }

@@ -8,7 +8,7 @@ interface Props {
   objects: HiddenObjectItem[];
   correctId: string;
   successLine?: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -30,17 +30,23 @@ export function HiddenObjectChallenge({ label, intro, objects, correctId, succes
   const [message, setMessage] = useState<string | null>(intro ?? null);
   const [messageTone, setMessageTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
+  const [wrongs, setWrongs] = useState(0);
 
   const pick = (item: HiddenObjectItem) => {
-    if (done) return;
+    if (done || inspected.has(item.id)) return;
     setInspected((s) => new Set(s).add(item.id));
     if (item.id === correctId) {
       setMessage(successLine ?? "You found it.");
       setMessageTone("success");
       setDone(true);
-      window.setTimeout(onComplete, 1400);
+      window.setTimeout(() => onComplete(wrongs), 1400);
     } else {
-      setMessage(item.wrongComment ?? "This object appears functional, but it is not the requested item.");
+      const w = wrongs + 1;
+      setWrongs(w);
+      setMessage(
+        (item.wrongComment ?? "Not the item they described.") +
+          (w >= 2 ? " Slow down — re-read what they asked for." : "")
+      );
       setMessageTone("wrong");
     }
   };

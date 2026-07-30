@@ -8,7 +8,7 @@ interface Props {
   prompt?: string;
   items: OrderItem[];
   successLine?: string;
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -23,34 +23,23 @@ function useShuffled<T>(items: T[]): T[] {
   }, [items]);
 }
 
+const MAX_ATTEMPTS = 3;
+
 export function OrderChallenge({ label, intro, prompt, items, successLine, onComplete, onCancel }: Props) {
   const shuffled = useShuffled(items);
   const [remaining, setRemaining] = useState<OrderItem[]>(shuffled);
   const [ordered, setOrdered] = useState<OrderItem[]>([]);
-  const [message, setMessage] = useState<string | null>(intro ?? null);
+  const [attempts, setAttempts] = useState(0);
+  const [message, setMessage] = useState<string | null>(
+    intro ?? "Build the whole line-up, then commit. No feedback until you do."
+  );
   const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
 
-  const nextExpectedRank = ordered.length + 1;
-
   const pick = (item: OrderItem) => {
     if (done) return;
-    if (item.rank === nextExpectedRank) {
-      const next = [...ordered, item];
-      setOrdered(next);
-      setRemaining(remaining.filter((r) => r.id !== item.id));
-      setMessage(`${item.label} — ${item.caption ?? "correct"}.`);
-      setTone("neutral");
-      if (next.length === items.length) {
-        setMessage(successLine ?? "Perfect order.");
-        setTone("success");
-        setDone(true);
-        window.setTimeout(onComplete, 1500);
-      }
-    } else {
-      setMessage(`Not next in order — try again. (Looking for position ${nextExpectedRank}.)`);
-      setTone("wrong");
-    }
+    setOrdered((o) => [...o, item]);
+    setRemaining((r) => r.filter((x) => x.id !== item.id));
   };
 
   const undo = () => {
@@ -58,8 +47,35 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
     const last = ordered[ordered.length - 1];
     setOrdered(ordered.slice(0, -1));
     setRemaining([...remaining, last]);
-    setMessage("Undone. Try a different pick.");
-    setTone("neutral");
+  };
+
+  const confirm = () => {
+    if (done || remaining.length > 0) return;
+    const correctSpots = ordered.filter((it, i) => it.rank === i + 1).length;
+    if (correctSpots === items.length) {
+      setMessage(successLine ?? "Exactly fair. Everyone got what they were owed.");
+      setTone("success");
+      setDone(true);
+      window.setTimeout(() => onComplete(attempts), 1700);
+      return;
+    }
+    const used = attempts + 1;
+    setAttempts(used);
+    if (used >= MAX_ATTEMPTS) {
+      setMessage(
+        `${correctSpots} of ${items.length} in the right place — and you're out of tries. Some people were treated unfairly.`
+      );
+      setTone("wrong");
+      setDone(true);
+      window.setTimeout(() => onComplete(used + (items.length - correctSpots)), 2200);
+      return;
+    }
+    setMessage(
+      `${correctSpots} of ${items.length} are in the right place. ${used >= 2 ? "Think about who needs it most, not who asked loudest." : "Read the details again."}`
+    );
+    setTone("wrong");
+    setOrdered([]);
+    setRemaining(shuffled);
   };
 
   return (
@@ -67,7 +83,7 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full"
+      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       style={{ boxShadow: "0 0 32px rgba(60,232,255,0.5)" }}
     >
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ ORDER</div>
@@ -97,11 +113,11 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
         <div className="pixel-font text-[8px] tracking-widest text-cyan-300/70 mb-2">▸ LINEUP</div>
         <div className="flex gap-2 flex-wrap">
           {ordered.length === 0 && (
-            <div className="pixel-font text-[9px] text-cyan-300/50">Pick position 1 first.</div>
+            <div className="pixel-font text-[9px] text-cyan-300/50">Who goes first? Decide for yourself.</div>
           )}
           {ordered.map((it, i) => (
-            <div key={it.id} className="flex flex-col items-center border-2 border-green-400/60 bg-green-400/5 p-2">
-              <span className="pixel-font text-[8px] text-green-300">#{i + 1}</span>
+            <div key={it.id} className="flex flex-col items-center border-2 border-cyan-400/60 bg-cyan-400/5 p-2">
+              <span className="pixel-font text-[8px] text-cyan-300">#{i + 1}</span>
               <span className="text-2xl">{it.glyph}</span>
               <span className="pixel-font text-[8px] text-cyan-100">{it.label}</span>
             </div>
@@ -116,7 +132,7 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
             key={it.id}
             onClick={() => pick(it)}
             disabled={done}
-            className="text-left p-3 border-2 border-cyan-400/60 hover:border-cyan-300 hover:bg-cyan-400/10 flex items-center gap-2"
+            className="text-left p-3 border-2 border-cyan-400/60 hover:border-cyan-300 hover:bg-cyan-400/10 flex items-center gap-2 disabled:opacity-50"
           >
             <span className="text-2xl">{it.glyph}</span>
             <div className="flex-1 min-w-0">
@@ -127,21 +143,33 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
         ))}
       </div>
 
-      <div className="flex justify-between items-center">
-        <button
-          onClick={undo}
-          disabled={done || ordered.length === 0}
-          className="pixel-font text-[9px] tracking-widest text-cyan-300 hover:text-cyan-100 border-2 border-cyan-400/50 px-3 py-1.5 bg-black disabled:opacity-40"
-        >
-          ↺ UNDO
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={done}
-          className="pixel-font text-[9px] tracking-widest text-pink-300 hover:text-pink-200 border-2 border-pink-400/50 hover:border-pink-400 px-3 py-1.5 bg-black disabled:opacity-40"
-        >
-          STEP AWAY
-        </button>
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="pixel-font text-[9px] text-cyan-300/60 tracking-widest">
+          TRIES LEFT {Math.max(0, MAX_ATTEMPTS - attempts)}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={undo}
+            disabled={done || ordered.length === 0}
+            className="pixel-font text-[9px] tracking-widest text-cyan-300 hover:text-cyan-100 border-2 border-cyan-400/50 px-3 py-1.5 bg-black disabled:opacity-40"
+          >
+            ↺ UNDO
+          </button>
+          <button
+            onClick={confirm}
+            disabled={done || remaining.length > 0}
+            className="pixel-font text-[10px] tracking-widest px-4 py-2 bg-cyan-400 text-black border-2 border-cyan-200 hover:bg-cyan-300 disabled:opacity-30"
+          >
+            ✓ COMMIT
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={done}
+            className="pixel-font text-[9px] tracking-widest text-pink-300 hover:text-pink-200 border-2 border-pink-400/50 hover:border-pink-400 px-3 py-1.5 bg-black disabled:opacity-40"
+          >
+            STEP AWAY
+          </button>
+        </div>
       </div>
     </motion.div>
   );

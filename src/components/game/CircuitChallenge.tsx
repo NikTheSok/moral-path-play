@@ -6,7 +6,7 @@ interface Props {
   label: string;
   intro?: string;
   nodes: CircuitNode[];
-  onComplete: () => void;
+  onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
 
@@ -29,6 +29,7 @@ export function CircuitChallenge({ label, intro, nodes, onComplete, onCancel }: 
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [wires, setWires] = useState<Wire[]>([]);
   const [spark, setSpark] = useState(0);
+  const [wrongs, setWrongs] = useState(0);
   const [message, setMessage] = useState<string | null>(intro ?? null);
   const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
@@ -59,10 +60,11 @@ export function CircuitChallenge({ label, intro, nodes, onComplete, onCancel }: 
         setMessage("Terminal restored. A hologram flickers into life across the panel.");
         setTone("success");
         setDone(true);
-        window.setTimeout(onComplete, 1600);
+        window.setTimeout(() => onComplete(wrongs), 1600);
       }
     } else {
       setSpark((n) => n + 1);
+      setWrongs((n) => n + 1);
       setSelectedLeft(null);
       setMessage("Spark! Wrong pairing — same color links only. The wire burns out.");
       setTone("wrong");

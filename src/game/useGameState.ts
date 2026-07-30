@@ -1,7 +1,44 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DayNumber, Morality, Scenario, Screen, StageChoice, TimePeriod } from "./types";
+import type { DayNumber, Morality, MoralityKey, Scenario, Screen, StageChoice, TimePeriod } from "./types";
 import { DAYS, SCENARIOS, scenarioFor, timeForLocation } from "./scenarios";
-import { investigationFor } from "./investigation";
+import { investigationFor, type EncounterResult, type EncounterQuality } from "./investigation";
+
+/** Which trait each day is teaching. */
+const DAY_TRAITS: Record<DayNumber, MoralityKey[]> = {
+  1: ["empathy"],
+  2: ["responsibility"],
+  3: ["honesty"],
+  4: ["honesty", "empathy"],
+  5: ["courage"],
+};
+
+/** Morality deltas earned by how the encounter was handled. */
+function deltasForResult(day: DayNumber, r: EncounterResult): Partial<Morality> {
+  const traits = DAY_TRAITS[day];
+  const out: Partial<Morality> = {};
+  const bump = (k: MoralityKey, v: number) => { out[k] = (out[k] ?? 0) + v; };
+
+  if (r.quality === "ignored") {
+    traits.forEach((t) => bump(t, -1));
+    bump("empathy", -1);
+    bump("selfishness", 2);
+    return out;
+  }
+
+  const gain: Record<Exclude<EncounterQuality, "ignored">, number> = {
+    perfect: 3, good: 2, sloppy: 1, poor: -1,
+  };
+  const base = gain[r.quality as Exclude<EncounterQuality, "ignored">];
+  traits.forEach((t) => bump(t, base));
+  if (r.quality === "perfect") bump("responsibility", 1);
+  if (r.quality === "poor") bump("selfishness", 1);
+  if (!r.exploredAll && r.quality !== "poor") {
+    traits.forEach((t) => bump(t, -1));
+    bump("selfishness", 1);
+  }
+  return out;
+}
+
 
 const INITIAL_MORALITY: Morality = {
   empathy: 0, honesty: 0, responsibility: 0, courage: 0, selfishness: 0,
