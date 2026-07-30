@@ -91,6 +91,9 @@ interface SaveState {
   completedScenarios: string[];
   lastChoiceLabel: string | null;
   journalEntries?: JournalEntry[];
+  encounters?: EncounterLog[];
+  badges?: string[];
+  ignoredScenarios?: string[];
 }
 
 function loadSave(): SaveState | null {
@@ -130,6 +133,9 @@ export function useGameState() {
   const [choiceLog, setChoiceLog] = useState<ChoiceLog[]>([]);
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [encounters, setEncounters] = useState<EncounterLog[]>([]);
+  const [badges, setBadges] = useState<string[]>([]);
+  const [ignoredScenarios, setIgnoredScenarios] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [lastChoiceLabel, setLastChoiceLabel] = useState<string | null>(null);
   const [hasSave, setHasSave] = useState<boolean>(() => hasSavedGame());
@@ -144,9 +150,12 @@ export function useGameState() {
       completedScenarios: Array.from(completedScenarios),
       lastChoiceLabel,
       journalEntries,
+      encounters,
+      badges,
+      ignoredScenarios,
     };
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(data)); setHasSave(true); } catch {}
-  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries]);
+  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries, encounters, badges, ignoredScenarios]);
 
   const reset = useCallback(() => {
     setScreen("menu");
@@ -176,6 +185,9 @@ export function useGameState() {
     setChoiceLog([]);
     setCompletedScenarios(new Set());
     setJournalEntries([]);
+    setEncounters([]);
+    setBadges([]);
+    setIgnoredScenarios([]);
     setLastChoiceLabel(null);
     setHasSave(false);
     setScreen("intro");
@@ -190,6 +202,9 @@ export function useGameState() {
     setChoiceLog(s.choiceLog ?? []);
     setCompletedScenarios(new Set(s.completedScenarios ?? []));
     setJournalEntries(s.journalEntries ?? []);
+    setEncounters(s.encounters ?? []);
+    setBadges(s.badges ?? []);
+    setIgnoredScenarios(s.ignoredScenarios ?? []);
     setLastChoiceLabel(s.lastChoiceLabel ?? null);
     setActiveScenario(null);
     setStageId(null);
@@ -366,6 +381,9 @@ export function useGameState() {
     choiceLog,
     completedScenarios,
     journalEntries,
+    encounters,
+    badges,
+    ignoredScenarios,
     lastChoiceLabel,
     hasSave,
     activeInvestigation,
