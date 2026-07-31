@@ -162,6 +162,26 @@ export interface Badge {
   blurb: string;
 }
 
+/** Final reasoning step: the player must draw the right conclusion. */
+export interface DeductionOption {
+  id: string;
+  label: string;
+  /** exactly one option is correct */
+  correct?: boolean;
+  /** what the NPC says when this wrong call is made */
+  wrongNote?: string;
+  /** true when this wrong call blames an innocent person (heavier penalty) */
+  accusation?: boolean;
+}
+
+export interface Deduction {
+  question: string;
+  options: DeductionOption[];
+  successNote: string;
+  /** shown after the first wrong call — a nudge, never the answer */
+  hint?: string;
+}
+
 export interface Investigation {
   scenarioId: string;
   objective: string;
@@ -169,12 +189,13 @@ export interface Investigation {
   clues: Clue[];
   requiredClueIds: string[];
   challenge?: Challenge;
+  deduction?: Deduction;
   journalEntry?: string;
   badge?: Badge;
 }
 
 /** How well the player handled an encounter. Drives the morality rating. */
-export type EncounterQuality = "perfect" | "good" | "sloppy" | "poor" | "ignored";
+export type EncounterQuality = "perfect" | "good" | "sloppy" | "poor" | "failed" | "ignored";
 
 export interface EncounterResult {
   scenarioId: string;
@@ -182,16 +203,44 @@ export interface EncounterResult {
   mistakes: number;
   /** true when the player examined every available lead before acting */
   exploredAll: boolean;
+  /** wrong conclusions drawn in the deduction step */
+  wrongCalls?: number;
+  /** the player blamed an innocent person */
+  falseAccusation?: boolean;
   entry?: string;
   badge?: Badge;
 }
 
-export function gradeEncounter(mistakes: number, exploredAll: boolean): EncounterQuality {
-  if (mistakes === 0 && exploredAll) return "perfect";
-  if (mistakes <= 1) return "good";
-  if (mistakes <= 3) return "sloppy";
+export interface GradeInput {
+  mistakes: number;
+  exploredAll: boolean;
+  wrongCalls?: number;
+  falseAccusation?: boolean;
+  /** true when the player never reached a correct conclusion / bailed on the task */
+  unresolved?: boolean;
+}
+
+export function gradeEncounter(input: GradeInput): EncounterQuality {
+  const { mistakes, exploredAll, wrongCalls = 0, falseAccusation = false, unresolved = false } = input;
+  if (unresolved) return "failed";
+  const penalty = mistakes + wrongCalls * 2 + (falseAccusation ? 3 : 0);
+  if (penalty >= 6) return "failed";
+  if (penalty === 0 && exploredAll) return "perfect";
+  if (penalty <= 1) return "good";
+  if (penalty <= 3) return "sloppy";
   return "poor";
 }
+
+/** Points shown to the player, mirrored by the morality deltas. */
+export const QUALITY_SCORE: Record<EncounterQuality, number> = {
+  perfect: 10, good: 5, sloppy: 2, poor: -5, failed: -15, ignored: -5,
+};
+
+export const QUALITY_LABEL: Record<EncounterQuality, string> = {
+  perfect: "FLAWLESS", good: "SOLVED", sloppy: "MESSY", poor: "BOTCHED",
+  failed: "FAILED", ignored: "IGNORED",
+};
+
 
 
 /* ================================================================== */
