@@ -265,6 +265,46 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
             </div>
           )}
 
+          {investigation.deduction && (
+            <div className="mt-6">
+              <div className="pixel-font text-[9px] tracking-[0.3em] text-cyan-300/80 mb-3">▸ CONCLUSION</div>
+              <button
+                onClick={() => deductionReady && !deduction && setDeductionOpen(true)}
+                disabled={!deductionReady || !!deduction}
+                className={`w-full text-left bg-black/80 border-2 p-3 transition ${
+                  deduction
+                    ? deduction.solved
+                      ? "border-green-400/70 cursor-default"
+                      : "border-pink-500 cursor-default"
+                    : deductionReady
+                    ? "border-pink-400/70 hover:bg-pink-400/10"
+                    : "border-cyan-400/20 opacity-40 cursor-not-allowed"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl leading-none">🧠</div>
+                  <div className="flex-1">
+                    <div className="pixel-font text-[8px] tracking-[0.3em] mb-1 text-pink-300">
+                      {deduction ? (deduction.solved ? "✓ CALLED CORRECTLY" : "✗ CALLED WRONG") : deductionReady ? "▸ READY" : "▸ LOCKED"}
+                    </div>
+                    <div className="pixel-font text-[11px] text-cyan-100">{investigation.deduction.question}</div>
+                    <div className="pixel-font text-[9px] text-cyan-300/60 mt-1">
+                      {deduction
+                        ? deduction.falseAccusation
+                          ? "You blamed someone who didn't do it."
+                          : deduction.solved
+                          ? "The evidence backed you up."
+                          : "The case closed on a guess."
+                        : deductionReady
+                        ? "Three calls. Get it wrong and it costs you."
+                        : "Gather the facts and finish the task first."}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
           <div className="mt-6 flex flex-wrap gap-3 justify-between items-center">
             <button
               onClick={() => setConfirmLeave(true)}
@@ -281,11 +321,18 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
               ▶ TALK IT OVER
             </button>
           </div>
+          {canProceed && (
+            <div className="pixel-font text-[9px] mt-2 text-right leading-relaxed"
+              style={{ color: QUALITY_SCORE[projected] >= 5 ? "#6affb0" : QUALITY_SCORE[projected] > 0 ? "#ffd84a" : "#ff6aa8" }}>
+              RECORD: {QUALITY_LABEL[projected]} · {QUALITY_SCORE[projected] > 0 ? "+" : ""}{QUALITY_SCORE[projected]} MORALITY
+            </div>
+          )}
           {!canProceed && (
             <div className="pixel-font text-[9px] text-cyan-300/50 mt-2 text-right leading-relaxed">
               You can't help someone you haven't listened to.
             </div>
           )}
+
           {canProceed && skippedLeads > 0 && (
             <div className="pixel-font text-[9px] text-pink-300/70 mt-2 text-right leading-relaxed">
               {skippedLeads} lead{skippedLeads > 1 ? "s" : ""} still unchecked. You can leave it — it will be noted.
