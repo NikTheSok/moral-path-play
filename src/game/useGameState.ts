@@ -19,25 +19,30 @@ function deltasForResult(day: DayNumber, r: EncounterResult): Partial<Morality> 
   const bump = (k: MoralityKey, v: number) => { out[k] = (out[k] ?? 0) + v; };
 
   if (r.quality === "ignored") {
-    traits.forEach((t) => bump(t, -1));
+    traits.forEach((t) => bump(t, -2));
     bump("empathy", -1);
-    bump("selfishness", 2);
+    bump("responsibility", -1);
+    bump("selfishness", 3);
     return out;
   }
 
   const gain: Record<Exclude<EncounterQuality, "ignored">, number> = {
-    perfect: 3, good: 2, sloppy: 1, poor: -1,
+    perfect: 3, good: 2, sloppy: 1, poor: -2, failed: -4,
   };
   const base = gain[r.quality as Exclude<EncounterQuality, "ignored">];
   traits.forEach((t) => bump(t, base));
   if (r.quality === "perfect") bump("responsibility", 1);
   if (r.quality === "poor") bump("selfishness", 1);
-  if (!r.exploredAll && r.quality !== "poor") {
+  if (r.quality === "failed") { bump("selfishness", 2); bump("responsibility", -1); }
+  if (r.falseAccusation) { bump("honesty", -3); bump("empathy", -2); bump("selfishness", 1); }
+  if ((r.wrongCalls ?? 0) > 0) bump("honesty", -(r.wrongCalls ?? 0));
+  if (!r.exploredAll && r.quality !== "poor" && r.quality !== "failed") {
     traits.forEach((t) => bump(t, -1));
     bump("selfishness", 1);
   }
   return out;
 }
+
 
 
 const INITIAL_MORALITY: Morality = {
