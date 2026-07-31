@@ -288,7 +288,12 @@ export function useGameState() {
     if (!pendingScenario) { setActiveInvestigationId(null); return; }
     setActiveScenario(pendingScenario);
     setStageId(pendingScenario.startStage);
-    setPendingReply({ text: NPC_REACTION[r.quality], nextStage: pendingScenario.startStage });
+    const memory = ignoredScenarios.length > 0
+      ? MEMORY_PREFIX[Math.min(ignoredScenarios.length, MEMORY_PREFIX.length) - 1]
+      : "";
+    const accusation = r.falseAccusation ? ACCUSATION_NOTE : "";
+    setPendingReply({ text: memory + NPC_REACTION[r.quality] + accusation, nextStage: pendingScenario.startStage });
+
     setPendingScenario(null);
     setActiveInvestigationId(null);
   }, [pendingScenario, day, applyResult]);
