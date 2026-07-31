@@ -279,12 +279,18 @@ export function useGameState() {
     if (r.badge) setBadges((b) => (b.includes(r.badge!.name) ? b : [...b, r.badge!.name]));
     if (r.entry && pendingScenario) {
       const scenarioId = pendingScenario.id;
+      const text = r.quality === "failed"
+        ? "I got this one wrong. I acted before I understood, and someone paid for it. Logged as incomplete."
+        : r.falseAccusation
+        ? "I blamed the wrong person. The evidence was there and I didn't read it properly."
+        : r.entry;
       setJournalEntries((prev) =>
         prev.some((j) => j.scenarioId === scenarioId)
           ? prev
-          : [...prev, { day, scenarioId, text: r.entry! }]
+          : [...prev, { day, scenarioId, text }]
       );
     }
+
     if (!pendingScenario) { setActiveInvestigationId(null); return; }
     setActiveScenario(pendingScenario);
     setStageId(pendingScenario.startStage);
