@@ -296,7 +296,7 @@ export function useGameState() {
 
     setPendingScenario(null);
     setActiveInvestigationId(null);
-  }, [pendingScenario, day, applyResult]);
+  }, [pendingScenario, day, applyResult, ignoredScenarios]);
 
   /** The player chose to ignore this person. Story continues; the record remembers. */
   const abortInvestigation = useCallback((r: EncounterResult) => {
