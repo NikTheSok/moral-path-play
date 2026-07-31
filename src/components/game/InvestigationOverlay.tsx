@@ -43,6 +43,10 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const [mistakes, setMistakes] = useState(0);
   const [showBadge, setShowBadge] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [deductionOpen, setDeductionOpen] = useState(false);
+  const [deduction, setDeduction] = useState<{ wrongCalls: number; falseAccusation: boolean; solved: boolean } | null>(
+    investigation.deduction ? null : { wrongCalls: 0, falseAccusation: false, solved: true }
+  );
 
   useEffect(() => {
     setLogged(new Set());
@@ -53,7 +57,9 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     setMistakes(0);
     setShowBadge(false);
     setConfirmLeave(false);
-  }, [investigation.scenarioId, investigation.challenge]);
+    setDeductionOpen(false);
+    setDeduction(investigation.deduction ? null : { wrongCalls: 0, falseAccusation: false, solved: true });
+  }, [investigation.scenarioId, investigation.challenge, investigation.deduction]);
 
   const cluesById = useMemo(() => {
     const m: Record<string, { label: string; detail: string }> = {};
@@ -65,7 +71,8 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const challengeUnlocked =
     !!investigation.challenge &&
     (investigation.challenge.unlockClues ?? []).every((c) => logged.has(c));
-  const canProceed = requiredMet && challengeDone;
+  const deductionReady = requiredMet && challengeDone;
+  const canProceed = deductionReady && deduction !== null;
 
   /** Did the player look at every available lead, including optional ones? */
   const exploredAll = investigation.interactables.every(
@@ -74,6 +81,14 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const skippedLeads = investigation.interactables.filter(
     (it) => !visited.has(it.id) && !(it.requiresClueId && !logged.has(it.requiresClueId))
   ).length;
+
+  const projected: EncounterQuality = gradeEncounter({
+    mistakes,
+    exploredAll,
+    wrongCalls: deduction?.wrongCalls ?? 0,
+    falseAccusation: deduction?.falseAccusation ?? false,
+    unresolved: deduction ? !deduction.solved : false,
+  });
 
   const inspect = (it: Interactable) => {
     if (it.requiresClueId && !logged.has(it.requiresClueId)) return;
@@ -93,19 +108,26 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     setMistakes((prev) => prev + m);
     setChallengeDone(true);
     setChallengeOpen(false);
-    if (investigation.badge && m === 0) setShowBadge(true);
   };
 
   const finish = () => {
-    const quality = gradeEncounter(mistakes, exploredAll);
-    onComplete({
-      scenarioId: investigation.scenarioId,
-      quality,
-      mistakes,
-      exploredAll,
-      entry: investigation.journalEntry,
-      badge: quality === "perfect" || quality === "good" ? investigation.badge : undefined,
-    });
+    const quality = projected;
+    if (investigation.badge && quality === "perfect") {
+      setShowBadge(true);
+    }
+    const emit = () =>
+      onComplete({
+        scenarioId: investigation.scenarioId,
+        quality,
+        mistakes,
+        exploredAll,
+        wrongCalls: deduction?.wrongCalls ?? 0,
+        falseAccusation: deduction?.falseAccusation ?? false,
+        entry: investigation.journalEntry,
+        badge: quality === "perfect" ? investigation.badge : undefined,
+      });
+    if (investigation.badge && quality === "perfect") window.setTimeout(emit, 2200);
+    else emit();
   };
 
   const walkAway = () => {
@@ -114,10 +136,13 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
       quality: "ignored",
       mistakes,
       exploredAll: false,
+      wrongCalls: deduction?.wrongCalls ?? 0,
     });
   };
 
   const ch = investigation.challenge;
+
+
 
 
   return (
