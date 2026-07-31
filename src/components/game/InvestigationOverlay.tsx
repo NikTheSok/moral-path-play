@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import type { Investigation, Interactable, EncounterResult } from "@/game/investigation";
-import { gradeEncounter } from "@/game/investigation";
+import type { Investigation, Interactable, EncounterResult, EncounterQuality } from "@/game/investigation";
+import { gradeEncounter, QUALITY_LABEL, QUALITY_SCORE } from "@/game/investigation";
+import { DeductionChallenge } from "./challenges/DeductionChallenge";
+
 import { SequenceChallenge } from "./SequenceChallenge";
 import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
 import { BatteryChallenge } from "./BatteryChallenge";
@@ -43,6 +45,10 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const [mistakes, setMistakes] = useState(0);
   const [showBadge, setShowBadge] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [deductionOpen, setDeductionOpen] = useState(false);
+  const [deduction, setDeduction] = useState<{ wrongCalls: number; falseAccusation: boolean; solved: boolean } | null>(
+    investigation.deduction ? null : { wrongCalls: 0, falseAccusation: false, solved: true }
+  );
 
   useEffect(() => {
     setLogged(new Set());
@@ -53,7 +59,9 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     setMistakes(0);
     setShowBadge(false);
     setConfirmLeave(false);
-  }, [investigation.scenarioId, investigation.challenge]);
+    setDeductionOpen(false);
+    setDeduction(investigation.deduction ? null : { wrongCalls: 0, falseAccusation: false, solved: true });
+  }, [investigation.scenarioId, investigation.challenge, investigation.deduction]);
 
   const cluesById = useMemo(() => {
     const m: Record<string, { label: string; detail: string }> = {};
@@ -65,7 +73,8 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const challengeUnlocked =
     !!investigation.challenge &&
     (investigation.challenge.unlockClues ?? []).every((c) => logged.has(c));
-  const canProceed = requiredMet && challengeDone;
+  const deductionReady = requiredMet && challengeDone;
+  const canProceed = deductionReady && deduction !== null;
 
   /** Did the player look at every available lead, including optional ones? */
   const exploredAll = investigation.interactables.every(
@@ -74,6 +83,14 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
   const skippedLeads = investigation.interactables.filter(
     (it) => !visited.has(it.id) && !(it.requiresClueId && !logged.has(it.requiresClueId))
   ).length;
+
+  const projected: EncounterQuality = gradeEncounter({
+    mistakes,
+    exploredAll,
+    wrongCalls: deduction?.wrongCalls ?? 0,
+    falseAccusation: deduction?.falseAccusation ?? false,
+    unresolved: deduction ? !deduction.solved : false,
+  });
 
   const inspect = (it: Interactable) => {
     if (it.requiresClueId && !logged.has(it.requiresClueId)) return;
@@ -93,19 +110,26 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     setMistakes((prev) => prev + m);
     setChallengeDone(true);
     setChallengeOpen(false);
-    if (investigation.badge && m === 0) setShowBadge(true);
   };
 
   const finish = () => {
-    const quality = gradeEncounter(mistakes, exploredAll);
-    onComplete({
-      scenarioId: investigation.scenarioId,
-      quality,
-      mistakes,
-      exploredAll,
-      entry: investigation.journalEntry,
-      badge: quality === "perfect" || quality === "good" ? investigation.badge : undefined,
-    });
+    const quality = projected;
+    if (investigation.badge && quality === "perfect") {
+      setShowBadge(true);
+    }
+    const emit = () =>
+      onComplete({
+        scenarioId: investigation.scenarioId,
+        quality,
+        mistakes,
+        exploredAll,
+        wrongCalls: deduction?.wrongCalls ?? 0,
+        falseAccusation: deduction?.falseAccusation ?? false,
+        entry: investigation.journalEntry,
+        badge: quality === "perfect" ? investigation.badge : undefined,
+      });
+    if (investigation.badge && quality === "perfect") window.setTimeout(emit, 2200);
+    else emit();
   };
 
   const walkAway = () => {
@@ -114,10 +138,13 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
       quality: "ignored",
       mistakes,
       exploredAll: false,
+      wrongCalls: deduction?.wrongCalls ?? 0,
     });
   };
 
   const ch = investigation.challenge;
+
+
 
 
   return (
@@ -238,6 +265,46 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
             </div>
           )}
 
+          {investigation.deduction && (
+            <div className="mt-6">
+              <div className="pixel-font text-[9px] tracking-[0.3em] text-cyan-300/80 mb-3">▸ CONCLUSION</div>
+              <button
+                onClick={() => deductionReady && !deduction && setDeductionOpen(true)}
+                disabled={!deductionReady || !!deduction}
+                className={`w-full text-left bg-black/80 border-2 p-3 transition ${
+                  deduction
+                    ? deduction.solved
+                      ? "border-green-400/70 cursor-default"
+                      : "border-pink-500 cursor-default"
+                    : deductionReady
+                    ? "border-pink-400/70 hover:bg-pink-400/10"
+                    : "border-cyan-400/20 opacity-40 cursor-not-allowed"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl leading-none">🧠</div>
+                  <div className="flex-1">
+                    <div className="pixel-font text-[8px] tracking-[0.3em] mb-1 text-pink-300">
+                      {deduction ? (deduction.solved ? "✓ CALLED CORRECTLY" : "✗ CALLED WRONG") : deductionReady ? "▸ READY" : "▸ LOCKED"}
+                    </div>
+                    <div className="pixel-font text-[11px] text-cyan-100">{investigation.deduction.question}</div>
+                    <div className="pixel-font text-[9px] text-cyan-300/60 mt-1">
+                      {deduction
+                        ? deduction.falseAccusation
+                          ? "You blamed someone who didn't do it."
+                          : deduction.solved
+                          ? "The evidence backed you up."
+                          : "The case closed on a guess."
+                        : deductionReady
+                        ? "Three calls. Get it wrong and it costs you."
+                        : "Gather the facts and finish the task first."}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
           <div className="mt-6 flex flex-wrap gap-3 justify-between items-center">
             <button
               onClick={() => setConfirmLeave(true)}
@@ -254,11 +321,18 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
               ▶ TALK IT OVER
             </button>
           </div>
+          {canProceed && (
+            <div className="pixel-font text-[9px] mt-2 text-right leading-relaxed"
+              style={{ color: QUALITY_SCORE[projected] >= 5 ? "#6affb0" : QUALITY_SCORE[projected] > 0 ? "#ffd84a" : "#ff6aa8" }}>
+              RECORD: {QUALITY_LABEL[projected]} · {QUALITY_SCORE[projected] > 0 ? "+" : ""}{QUALITY_SCORE[projected]} MORALITY
+            </div>
+          )}
           {!canProceed && (
             <div className="pixel-font text-[9px] text-cyan-300/50 mt-2 text-right leading-relaxed">
               You can't help someone you haven't listened to.
             </div>
           )}
+
           {canProceed && skippedLeads > 0 && (
             <div className="pixel-font text-[9px] text-pink-300/70 mt-2 text-right leading-relaxed">
               {skippedLeads} lead{skippedLeads > 1 ? "s" : ""} still unchecked. You can leave it — it will be noted.
@@ -438,6 +512,28 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {deductionOpen && investigation.deduction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 bg-black/85 flex items-center justify-center p-4"
+          >
+            <DeductionChallenge
+              deduction={investigation.deduction}
+              evidence={investigation.clues.filter((c) => logged.has(c.id))}
+              onResolve={(r) => {
+                setDeduction(r);
+                setDeductionOpen(false);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
 
       <AnimatePresence>
         {confirmLeave && (

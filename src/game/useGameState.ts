@@ -19,25 +19,30 @@ function deltasForResult(day: DayNumber, r: EncounterResult): Partial<Morality> 
   const bump = (k: MoralityKey, v: number) => { out[k] = (out[k] ?? 0) + v; };
 
   if (r.quality === "ignored") {
-    traits.forEach((t) => bump(t, -1));
+    traits.forEach((t) => bump(t, -2));
     bump("empathy", -1);
-    bump("selfishness", 2);
+    bump("responsibility", -1);
+    bump("selfishness", 3);
     return out;
   }
 
   const gain: Record<Exclude<EncounterQuality, "ignored">, number> = {
-    perfect: 3, good: 2, sloppy: 1, poor: -1,
+    perfect: 3, good: 2, sloppy: 1, poor: -2, failed: -4,
   };
   const base = gain[r.quality as Exclude<EncounterQuality, "ignored">];
   traits.forEach((t) => bump(t, base));
   if (r.quality === "perfect") bump("responsibility", 1);
   if (r.quality === "poor") bump("selfishness", 1);
-  if (!r.exploredAll && r.quality !== "poor") {
+  if (r.quality === "failed") { bump("selfishness", 2); bump("responsibility", -1); }
+  if (r.falseAccusation) { bump("honesty", -3); bump("empathy", -2); bump("selfishness", 1); }
+  if ((r.wrongCalls ?? 0) > 0) bump("honesty", -(r.wrongCalls ?? 0));
+  if (!r.exploredAll && r.quality !== "poor" && r.quality !== "failed") {
     traits.forEach((t) => bump(t, -1));
     bump("selfishness", 1);
   }
   return out;
 }
+
 
 
 const INITIAL_MORALITY: Morality = {
@@ -73,8 +78,19 @@ const NPC_REACTION: Record<EncounterQuality, string> = {
   good: "\"That worked. Took you a moment, but you got there. Thanks.\"",
   sloppy: "\"...it's fine. It's mostly fine. I'll fix the rest myself.\"",
   poor: "\"I don't think that fixed anything. But you tried, I guess.\"",
+  failed: "\"No. That's not what happened, and now everyone believes it did. Please just go.\"",
   ignored: "\"Oh... maybe someone else will help.\"",
 };
+
+/** What people say when your record of walking away precedes you. */
+const MEMORY_PREFIX = [
+  "\"I heard you walked past someone yesterday. I hoped that wasn't true.\" ",
+  "\"You ignored someone who asked. This time — please don't leave.\" ",
+  "\"People talk. They said you don't stop. Prove them wrong.\" ",
+];
+
+const ACCUSATION_NOTE = " Someone innocent got blamed today, and everyone here saw it.";
+
 
 
 interface PendingReply {
@@ -263,19 +279,30 @@ export function useGameState() {
     if (r.badge) setBadges((b) => (b.includes(r.badge!.name) ? b : [...b, r.badge!.name]));
     if (r.entry && pendingScenario) {
       const scenarioId = pendingScenario.id;
+      const text = r.quality === "failed"
+        ? "I got this one wrong. I acted before I understood, and someone paid for it. Logged as incomplete."
+        : r.falseAccusation
+        ? "I blamed the wrong person. The evidence was there and I didn't read it properly."
+        : r.entry;
       setJournalEntries((prev) =>
         prev.some((j) => j.scenarioId === scenarioId)
           ? prev
-          : [...prev, { day, scenarioId, text: r.entry! }]
+          : [...prev, { day, scenarioId, text }]
       );
     }
+
     if (!pendingScenario) { setActiveInvestigationId(null); return; }
     setActiveScenario(pendingScenario);
     setStageId(pendingScenario.startStage);
-    setPendingReply({ text: NPC_REACTION[r.quality], nextStage: pendingScenario.startStage });
+    const memory = ignoredScenarios.length > 0
+      ? MEMORY_PREFIX[Math.min(ignoredScenarios.length, MEMORY_PREFIX.length) - 1]
+      : "";
+    const accusation = r.falseAccusation ? ACCUSATION_NOTE : "";
+    setPendingReply({ text: memory + NPC_REACTION[r.quality] + accusation, nextStage: pendingScenario.startStage });
+
     setPendingScenario(null);
     setActiveInvestigationId(null);
-  }, [pendingScenario, day, applyResult]);
+  }, [pendingScenario, day, applyResult, ignoredScenarios]);
 
   /** The player chose to ignore this person. Story continues; the record remembers. */
   const abortInvestigation = useCallback((r: EncounterResult) => {
