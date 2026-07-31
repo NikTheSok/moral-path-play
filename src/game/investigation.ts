@@ -864,3 +864,179 @@ export const INVESTIGATIONS: Record<string, Investigation> = {
 export function investigationFor(scenarioId: string): Investigation | null {
   return INVESTIGATIONS[scenarioId] ?? null;
 }
+
+/* ================================================================== */
+/*  DEDUCTIONS — the reasoning step. One correct call, real penalties. */
+/* ================================================================== */
+
+const DEDUCTIONS: Record<string, Deduction> = {
+  "d1-damaged-bot": {
+    question: "So — what actually happened to the toy?",
+    hint: "Two kids told you what they felt. One told you what they saw.",
+    options: [
+      { id: "sam", label: "Sam took it. He was closest.", accusation: true, wrongNote: "Sam's face falls. 'I told you I didn't.' The others start pointing too." },
+      { id: "mira", label: "Mira made it up for attention.", accusation: true, wrongNote: "Mira goes quiet and walks off. That wasn't fair, and you knew it." },
+      { id: "wind", label: "The wind rolled it under the slide.", correct: true },
+      { id: "lost", label: "It's gone. Nothing to be done.", wrongNote: "Giving up isn't a conclusion. Three kids are still upset." },
+    ],
+    successNote: "Nobody stole anything. Three stories, one truth — and no one had to be the villain.",
+  },
+  "d1-market-discrim": {
+    question: "Where does Pip actually belong?",
+    hint: "One of the things you found had an address on it.",
+    options: [
+      { id: "cafe", label: "With the owner at the corner cafe.", correct: true },
+      { id: "keep", label: "Keep Pip. It likes you.", wrongNote: "Someone is out there searching. Keeping Pip would be theft with a warm feeling attached." },
+      { id: "pound", label: "Hand it to the robot pound.", wrongNote: "Pip trembles at the word. There was a faster, kinder answer and you had it." },
+      { id: "leave", label: "Leave Pip where you found it.", wrongNote: "It curls up again. Nothing you learned got used." },
+    ],
+    successNote: "You followed the trail instead of guessing. That's what got Pip home.",
+  },
+  "d1-subway-fare": {
+    question: "What does this person actually need most?",
+    hint: "They didn't ask for money. Re-read what you noticed about them.",
+    options: [
+      { id: "company", label: "Warmth, rest and company.", correct: true },
+      { id: "money", label: "Money. Old people are always short.", wrongNote: "They stiffen. 'I'm not a beggar, dear.' You assumed instead of observing." },
+      { id: "medic", label: "A medic — they must be ill.", wrongNote: "'I'm not sick. I'm just alone.' Being alone isn't a medical problem." },
+      { id: "nothing", label: "Nothing. They're fine.", wrongNote: "They watch you leave. That was the wrong read and you both know it." },
+    ],
+    successNote: "Loneliness looks like nothing at all until someone bothers to look.",
+  },
+  "d2-checkpoint": {
+    question: "Whose mess is this to clean?",
+    hint: "Think about who uses the plaza, not who dropped which cup.",
+    options: [
+      { id: "everyone", label: "Everyone's — including mine.", correct: true },
+      { id: "crew", label: "The sanitation crew's. It's their job.", wrongNote: "The worker sighs. 'Six of us. Ten thousand of you.' Responsibility isn't a job title." },
+      { id: "festival", label: "The festival organisers'. Bill them.", wrongNote: "Paperwork doesn't pick up glass. The plaza stays dirty while you're right." },
+      { id: "none", label: "Nobody's. Rain will handle it.", wrongNote: "Rain moves rubbish into the drains. Then it's everyone's problem twice." },
+    ],
+    successNote: "You didn't make the mess. You cleaned it anyway. That's the whole lesson.",
+  },
+  "d2-corp-plaza": {
+    question: "Why did the bike fall apart in the first place?",
+    hint: "Look at what you found in the toolbox, not at the child.",
+    options: [
+      { id: "neglect", label: "Small parts were never maintained.", correct: true },
+      { id: "kid", label: "The kid rides recklessly.", accusation: true, wrongNote: "They flush red. 'I ride to school. That's all.' You blamed the victim." },
+      { id: "cheap", label: "It's a cheap bike. Nothing to do.", wrongNote: "Every fixable thing gets called unfixable by someone who won't try." },
+      { id: "sabotage", label: "Someone sabotaged it.", accusation: true, wrongNote: "Now the child looks suspiciously at their friends. You planted that." },
+    ],
+    successNote: "Things break slowly, then all at once. Care is maintenance, not rescue.",
+  },
+  "d2-apartment": {
+    question: "How do you keep the library from falling apart again?",
+    hint: "One fix lasts a day. One fix lasts a year.",
+    options: [
+      { id: "system", label: "Reshelve it AND show people the system.", correct: true },
+      { id: "shelve", label: "Just reshelve it and go.", wrongNote: "Tomorrow it's chaos again. You solved today, not the problem." },
+      { id: "lock", label: "Lock the shelves so nobody disturbs them.", wrongNote: "A library nobody can touch isn't a library." },
+      { id: "blame", label: "Post a sign blaming careless readers.", accusation: true, wrongNote: "Shame doesn't teach filing. Two regulars stop coming." },
+    ],
+    successNote: "Responsibility scales when you teach it instead of hoarding it.",
+  },
+  "d3-cyber-homeless": {
+    question: "What happened to the wallet?",
+    hint: "You inspected a place before you talked to anyone. Go back to that.",
+    options: [
+      { id: "bench", label: "It slipped behind the bench slats.", correct: true },
+      { id: "stranger", label: "The stranger nearby took it.", accusation: true, wrongNote: "They're searched in front of everyone. Nothing. They don't look at you again." },
+      { id: "bystander", label: "One of the bystanders pocketed it.", accusation: true, wrongNote: "The crowd turns on itself. You started that with a guess." },
+      { id: "gone", label: "Stolen. Report it and move on.", wrongNote: "A report closes the case, not the truth. The wallet is still here." },
+    ],
+    successNote: "'Stolen' was the easy story. The evidence said something quieter.",
+  },
+  "d3-malfunction": {
+    question: "What's the honest way to close this?",
+    hint: "Honesty isn't only about who gets punished.",
+    options: [
+      { id: "return", label: "Return the notebook and let them explain themselves.", correct: true },
+      { id: "report", label: "Report them to the teacher immediately.", wrongNote: "They never got to admit it themselves. You took the honesty from them." },
+      { id: "hide", label: "Quietly destroy the notebook.", wrongNote: "Now two people are dishonest instead of one." },
+      { id: "ignore", label: "Not your problem. Say nothing.", wrongNote: "The real owner loses their work and never learns why." },
+    ],
+    successNote: "You gave them the chance to be honest instead of catching them being dishonest.",
+  },
+  "d3-alley3": {
+    question: "Who broke the window?",
+    hint: "Compare the footprints with where the ball actually ended up.",
+    options: [
+      { id: "wind", label: "Nobody. The gust slammed it shut.", correct: true },
+      { id: "accused", label: "The accused kid. Everyone says so.", accusation: true, wrongNote: "The crowd cheers. The kid stops speaking to anyone for a week. And the evidence never fit." },
+      { id: "ball", label: "The ball, kicked by someone unknown.", wrongNote: "The ball is on the wrong side of the wall for that. You skipped a step." },
+      { id: "unknowable", label: "Impossible to know.", wrongNote: "It was knowable. You had all three pieces in your hand." },
+    ],
+    successNote: "Everyone agreed on the wrong answer. Evidence outvoted the crowd.",
+  },
+  "d4-rooftop": {
+    question: "What makes the swing rotation fair?",
+    hint: "Fair isn't 'the loudest kid' or 'my favourite kid'.",
+    options: [
+      { id: "order", label: "Fixed turns by arrival, timed equally.", correct: true },
+      { id: "loudest", label: "Whoever shouts loudest goes first.", wrongNote: "You just taught nine children that volume beats fairness." },
+      { id: "small", label: "The smallest kids get all the turns.", wrongNote: "Kindness aimed at one group is unfairness aimed at another." },
+      { id: "free", label: "No rules. Let them sort it out.", wrongNote: "They sort it out with elbows. Two kids leave crying." },
+    ],
+    successNote: "A rule everyone can predict is a rule everyone can accept.",
+  },
+  "d4-data-plaza": {
+    question: "How should the snacks be split?",
+    hint: "Count the snacks. Count the kids. No one gets seconds until all get firsts.",
+    options: [
+      { id: "equal", label: "Equal shares — everyone gets one before anyone gets two.", correct: true },
+      { id: "first", label: "First come, first served.", wrongNote: "The slowest child gets nothing and learns that speed equals worth." },
+      { id: "friends", label: "Give more to the kids who were nice to you.", wrongNote: "That's a reward, not a share. The others noticed instantly." },
+      { id: "hold", label: "Keep them until an adult decides.", wrongNote: "You had the answer and handed the problem to someone else." },
+    ],
+    successNote: "Fairness is boring arithmetic done honestly.",
+  },
+  "d4-subway4": {
+    question: "Who charges first?",
+    hint: "'Neediest' is measurable here. Look at the numbers, not the queue.",
+    options: [
+      { id: "lowest", label: "Lowest battery first, regardless of who asked.", correct: true },
+      { id: "queue", label: "Whoever arrived first.", wrongNote: "A bot at 4% shuts down while a bot at 80% tops up. Order isn't the same as fairness." },
+      { id: "self", label: "Me. I'm running the city errands.", wrongNote: "You wrote the rule and made yourself the exception." },
+      { id: "loud", label: "The one complaining most.", wrongNote: "You rewarded pressure. The quiet one powers down." },
+    ],
+    successNote: "Fair sometimes means the person who asked last goes first.",
+  },
+  "d5-rain-alley": {
+    question: "What does this child actually need from you?",
+    hint: "Courage isn't doing it for someone.",
+    options: [
+      { id: "walk", label: "A safe path — and someone walking beside them.", correct: true },
+      { id: "carry", label: "Carry them across.", wrongNote: "They cross, but they're just as afraid tomorrow. You solved the gap, not the fear." },
+      { id: "push", label: "Tell them to stop being scared.", wrongNote: "They freeze up completely. Fear doesn't respond to orders." },
+      { id: "back", label: "Send them the long way round.", wrongNote: "An hour's detour and one more thing they believe they can't do." },
+    ],
+    successNote: "You didn't remove the fear. You stayed next to it.",
+  },
+  "d5-apt5": {
+    question: "How does this crate move?",
+    hint: "You already noticed how much it weighs, and who was standing nearby.",
+    options: [
+      { id: "ask", label: "Ask the nearby robots and lift together.", correct: true },
+      { id: "alone", label: "Force it alone.", wrongNote: "Servo strain warning. The crate shifts two centimetres and your arm needs repair." },
+      { id: "wait", label: "Wait for the city crew.", wrongNote: "Four hours. An ambulance route stays blocked. Courage isn't patience here." },
+      { id: "detour", label: "Reroute everyone around it.", wrongNote: "The obstacle is still there tomorrow, and so is the excuse." },
+    ],
+    successNote: "Asking for help took more courage than lifting did.",
+  },
+  "d5-reactor": {
+    question: "What made you human this week?",
+    hint: "Not one moment. A pattern.",
+    options: [
+      { id: "choice", label: "Choosing to care, again and again.", correct: true },
+      { id: "smart", label: "Being smarter than the people I helped.", wrongNote: "The crowd's smile flickers. Intelligence was never the missing part." },
+      { id: "rules", label: "Following the protocol correctly.", wrongNote: "A machine can follow protocol. That's the point of the test." },
+      { id: "nothing", label: "Nothing. I'm still just a machine.", wrongNote: "Five days of evidence say otherwise, and you ignored all of it." },
+    ],
+    successNote: "Not human by design. Human by choice — repeated until it was true.",
+  },
+};
+
+for (const [id, d] of Object.entries(DEDUCTIONS)) {
+  if (INVESTIGATIONS[id]) INVESTIGATIONS[id].deduction = d;
+}
