@@ -514,6 +514,28 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
       </AnimatePresence>
 
       <AnimatePresence>
+        {deductionOpen && investigation.deduction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-20 bg-black/85 flex items-center justify-center p-4"
+          >
+            <DeductionChallenge
+              deduction={investigation.deduction}
+              evidence={investigation.clues.filter((c) => logged.has(c.id))}
+              onResolve={(r) => {
+                setDeduction(r);
+                setDeductionOpen(false);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
+
+      <AnimatePresence>
         {confirmLeave && (
           <motion.div
             initial={{ opacity: 0 }}
