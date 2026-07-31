@@ -78,8 +78,19 @@ const NPC_REACTION: Record<EncounterQuality, string> = {
   good: "\"That worked. Took you a moment, but you got there. Thanks.\"",
   sloppy: "\"...it's fine. It's mostly fine. I'll fix the rest myself.\"",
   poor: "\"I don't think that fixed anything. But you tried, I guess.\"",
+  failed: "\"No. That's not what happened, and now everyone believes it did. Please just go.\"",
   ignored: "\"Oh... maybe someone else will help.\"",
 };
+
+/** What people say when your record of walking away precedes you. */
+const MEMORY_PREFIX = [
+  "\"I heard you walked past someone yesterday. I hoped that wasn't true.\" ",
+  "\"You ignored someone who asked. This time — please don't leave.\" ",
+  "\"People talk. They said you don't stop. Prove them wrong.\" ",
+];
+
+const ACCUSATION_NOTE = " Someone innocent got blamed today, and everyone here saw it.";
+
 
 
 interface PendingReply {
