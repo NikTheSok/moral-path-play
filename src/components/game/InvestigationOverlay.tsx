@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import type { Investigation, Interactable, EncounterResult } from "@/game/investigation";
-import { gradeEncounter } from "@/game/investigation";
+import type { Investigation, Interactable, EncounterResult, EncounterQuality } from "@/game/investigation";
+import { gradeEncounter, QUALITY_LABEL, QUALITY_SCORE } from "@/game/investigation";
+import { DeductionChallenge } from "./challenges/DeductionChallenge";
+
 import { SequenceChallenge } from "./SequenceChallenge";
 import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
 import { BatteryChallenge } from "./BatteryChallenge";
