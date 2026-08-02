@@ -110,6 +110,10 @@ interface SaveState {
   encounters?: EncounterLog[];
   badges?: string[];
   ignoredScenarios?: string[];
+  xp?: number;
+  streak?: number;
+  bestStreak?: number;
+  upgrades?: string[];
 }
 
 function loadSave(): SaveState | null {
