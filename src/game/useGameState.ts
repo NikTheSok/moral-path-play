@@ -302,16 +302,14 @@ export function useGameState() {
 
     // --- progression: XP, streak, rank ---
     const clean = isCleanRun(r.quality, r.wrongCalls ?? 0, !!r.falseAccusation);
-    setStreak((prev) => {
-      const nextStreak = clean ? prev + 1 : 0;
-      const gain = xpForEncounter(r.quality, clean ? prev : 0);
-      setLastXpGain(gain);
-      setStreakLost(!clean && prev >= 2);
-      setXp((x) => Math.max(0, x + gain));
-      setBestStreak((b) => Math.max(b, nextStreak));
-      return nextStreak;
-    });
-  }, [day]);
+    const gain = xpForEncounter(r.quality, clean ? streak : 0);
+    const nextStreak = clean ? streak + 1 : 0;
+    setLastXpGain(gain);
+    setStreakLost(!clean && streak >= 2);
+    setXp((x) => Math.max(0, x + gain));
+    setStreak(nextStreak);
+    setBestStreak((b) => Math.max(b, nextStreak));
+  }, [day, streak]);
 
   const clearXpFlash = useCallback(() => { setLastXpGain(null); setStreakLost(false); }, []);
 
