@@ -2,12 +2,19 @@ import { motion } from "framer-motion";
 import type { Morality } from "@/game/types";
 import { computeEnding } from "@/game/useGameState";
 import type { ChoiceLog } from "@/game/useGameState";
+import type { EncounterLog } from "@/game/useGameState";
+import { rankFor } from "@/game/progression";
 import { MoralityPanel } from "./MoralityPanel";
 import { RobotSprite } from "./RobotSprite";
 
 interface Props {
   morality: Morality;
   log: ChoiceLog[];
+  xp?: number;
+  badges?: string[];
+  bestStreak?: number;
+  encounters?: EncounterLog[];
+  ignoredCount?: number;
   onRestart: () => void;
   onMenu: () => void;
 }
@@ -17,7 +24,8 @@ type EndingKey =
   | "Cold Machine"
   | "Balanced Future"
   | "Broken Mirror"
-  | "Silent Protector";
+  | "Silent Protector"
+  | "Emergent Soul";
 
 interface CineConfig {
   bg: string;
@@ -30,6 +38,7 @@ const CINE: Record<EndingKey, CineConfig> = {
   "Cold Machine":      { bg: "linear-gradient(180deg,#02020a,#0a1428)", accent: "#3ce8ff", secondary: "#2a2a4a", caption: "perfect. quiet. alone." },
   "Balanced Future":   { bg: "linear-gradient(180deg,#1a2a4a,#6aa8d8)", accent: "#a26aff", secondary: "#3ce8ff", caption: "humans and machines, rebuilding together" },
   "Broken Mirror":     { bg: "linear-gradient(180deg,#1a0010,#3a0a1a)", accent: "#ff3a3a", secondary: "#a20a3a", caption: "you reflected what they feared most" },
+  "Emergent Soul":     { bg: "linear-gradient(180deg,#0a0a2a,#ff6aa8)", accent: "#ffffff", secondary: "#3ce8ff", caption: "no one can tell where the machine ends anymore" },
   "Silent Protector":  { bg: "linear-gradient(180deg,#0a1a3a,#ffd84a)", accent: "#ffd84a", secondary: "#3ce8ff", caption: "they will remember a hero. not a machine." },
 };
 
@@ -122,8 +131,19 @@ function CinematicSequence({ k }: { k: EndingKey }) {
   );
 }
 
-export function EndingScreen({ morality, log, onRestart, onMenu }: Props) {
-  const ending = computeEnding(morality);
+export function EndingScreen({
+  morality, log, xp = 0, badges = [], bestStreak = 0, encounters = [], ignoredCount = 0, onRestart, onMenu,
+}: Props) {
+  const flawless = encounters.filter((e) => e.quality === "perfect").length;
+  const rank = rankFor(xp);
+  const secret = flawless >= 12 && badges.length >= 6 && ignoredCount === 0;
+  const ending = secret
+    ? {
+        title: "Emergent Soul",
+        description:
+          "You did not miss a single person, and you did not get a single one of them wrong. Helix Corp has no category for this result. The lab archives it under a word no engineer wrote into your code: someone.",
+      }
+    : computeEnding(morality);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -152,6 +172,33 @@ export function EndingScreen({ morality, log, onRestart, onMenu }: Props) {
             ▸ {ending.title.toUpperCase()}
           </h2>
         </motion.div>
+
+        {/* SCORECARD */}
+        <motion.div
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="w-full max-w-3xl mb-6 grid grid-cols-2 md:grid-cols-5 gap-2"
+        >
+          {[
+            { k: "RANK", v: `${rank.icon} ${rank.name}` },
+            { k: "XP", v: String(xp) },
+            { k: "BADGES", v: `${badges.length}/6` },
+            { k: "BEST STREAK", v: String(bestStreak) },
+            { k: "IGNORED", v: String(ignoredCount) },
+          ].map((c) => (
+            <div key={c.k} className="border-2 border-cyan-400/50 bg-black/70 px-2 py-2 text-center">
+              <div className="pixel-font text-[8px] tracking-widest text-pink-400/80 mb-1">{c.k}</div>
+              <div className="pixel-font text-[10px] text-cyan-100 leading-relaxed">{c.v}</div>
+            </div>
+          ))}
+        </motion.div>
+
+        {secret && (
+          <div className="pixel-font text-[9px] tracking-widest text-yellow-300 mb-4" style={{ textShadow: "0 0 10px rgba(255,216,74,0.7)" }}>
+            ★ SECRET ENDING UNLOCKED
+          </div>
+        )}
 
         {/* CINEMATIC */}
         <motion.div

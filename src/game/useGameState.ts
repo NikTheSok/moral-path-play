@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DayNumber, Morality, MoralityKey, Scenario, Screen, StageChoice, TimePeriod } from "./types";
 import { DAYS, SCENARIOS, scenarioFor, timeForLocation } from "./scenarios";
 import { investigationFor, type EncounterResult, type EncounterQuality } from "./investigation";
+import { isCleanRun, xpForEncounter, rankFor, DAY_INSIGHT } from "./progression";
 
 /** Which trait each day is teaching. */
 const DAY_TRAITS: Record<DayNumber, MoralityKey[]> = {
@@ -110,6 +111,10 @@ interface SaveState {
   encounters?: EncounterLog[];
   badges?: string[];
   ignoredScenarios?: string[];
+  xp?: number;
+  streak?: number;
+  bestStreak?: number;
+  upgrades?: string[];
 }
 
 function loadSave(): SaveState | null {
@@ -152,9 +157,18 @@ export function useGameState() {
   const [encounters, setEncounters] = useState<EncounterLog[]>([]);
   const [badges, setBadges] = useState<string[]>([]);
   const [ignoredScenarios, setIgnoredScenarios] = useState<string[]>([]);
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [upgrades, setUpgrades] = useState<string[]>([]);
+  const [lastXpGain, setLastXpGain] = useState<number | null>(null);
+  const [streakLost, setStreakLost] = useState(false);
   const [paused, setPaused] = useState(false);
   const [lastChoiceLabel, setLastChoiceLabel] = useState<string | null>(null);
-  const [hasSave, setHasSave] = useState<boolean>(() => hasSavedGame());
+  const [hasSave, setHasSave] = useState<boolean>(false);
+
+  // Saved-game lookup is browser-only: read it after hydration.
+  useEffect(() => { setHasSave(hasSavedGame()); }, []);
 
   // Persist whenever meaningful progress changes (skip transient screens)
   useEffect(() => {
@@ -169,9 +183,10 @@ export function useGameState() {
       encounters,
       badges,
       ignoredScenarios,
+      xp, streak, bestStreak, upgrades,
     };
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(data)); setHasSave(true); } catch {}
-  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries, encounters, badges, ignoredScenarios]);
+  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries, encounters, badges, ignoredScenarios, xp, streak, bestStreak, upgrades]);
 
   const reset = useCallback(() => {
     setScreen("menu");
@@ -204,6 +219,12 @@ export function useGameState() {
     setEncounters([]);
     setBadges([]);
     setIgnoredScenarios([]);
+    setXp(0);
+    setStreak(0);
+    setBestStreak(0);
+    setUpgrades([]);
+    setLastXpGain(null);
+    setStreakLost(false);
     setLastChoiceLabel(null);
     setHasSave(false);
     setScreen("intro");
@@ -221,6 +242,12 @@ export function useGameState() {
     setEncounters(s.encounters ?? []);
     setBadges(s.badges ?? []);
     setIgnoredScenarios(s.ignoredScenarios ?? []);
+    setXp(s.xp ?? 0);
+    setStreak(s.streak ?? 0);
+    setBestStreak(s.bestStreak ?? 0);
+    setUpgrades(s.upgrades ?? []);
+    setLastXpGain(null);
+    setStreakLost(false);
     setLastChoiceLabel(s.lastChoiceLabel ?? null);
     setActiveScenario(null);
     setStageId(null);
@@ -272,7 +299,23 @@ export function useGameState() {
       return next;
     });
     setEncounters((prev) => [...prev, { day, scenarioId: r.scenarioId, quality: r.quality, mistakes: r.mistakes }]);
-  }, [day]);
+
+    // --- progression: XP, streak, rank ---
+    const clean = isCleanRun(r.quality, r.wrongCalls ?? 0, !!r.falseAccusation);
+    const gain = xpForEncounter(r.quality, clean ? streak : 0);
+    const nextStreak = clean ? streak + 1 : 0;
+    setLastXpGain(gain);
+    setStreakLost(!clean && streak >= 2);
+    setXp((x) => Math.max(0, x + gain));
+    setStreak(nextStreak);
+    setBestStreak((b) => Math.max(b, nextStreak));
+  }, [day, streak]);
+
+  const clearXpFlash = useCallback(() => { setLastXpGain(null); setStreakLost(false); }, []);
+
+  const pickUpgrade = useCallback((id: string) => {
+    setUpgrades((u) => (u.includes(id) ? u : [...u, id]));
+  }, []);
 
   const completeInvestigation = useCallback((r: EncounterResult) => {
     applyResult(r);
@@ -377,6 +420,15 @@ export function useGameState() {
   }, [pendingReply]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const beginNextDay = useCallback(() => {
+    const dayRuns = encounters.filter((e) => e.day === day);
+    if (dayRuns.length >= 3 && dayRuns.every((e) => e.quality === "perfect") && DAY_INSIGHT[day]) {
+      const insightId = `insight-day-${day}`;
+      setJournalEntries((prev) =>
+        prev.some((j) => j.scenarioId === insightId)
+          ? prev
+          : [...prev, { day, scenarioId: insightId, text: DAY_INSIGHT[day] }]
+      );
+    }
     setLastChoiceLabel(null);
     setActiveScenario(null);
     setStageId(null);
@@ -390,7 +442,7 @@ export function useGameState() {
     setDay((d) => (Math.min(5, d + 1)) as DayNumber);
     setTime("morning");
     setScreen("playing");
-  }, [day]);
+  }, [day, encounters]);
 
   const currentStage = activeScenario && stageId ? activeScenario.stages[stageId] ?? null : null;
 
@@ -411,6 +463,15 @@ export function useGameState() {
     encounters,
     badges,
     ignoredScenarios,
+    xp,
+    rank: rankFor(xp),
+    streak,
+    bestStreak,
+    upgrades,
+    lastXpGain,
+    streakLost,
+    clearXpFlash,
+    pickUpgrade,
     lastChoiceLabel,
     hasSave,
     activeInvestigation,

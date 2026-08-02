@@ -18,6 +18,7 @@ import { BadgeAward } from "./BadgeAward";
 
 interface Props {
   investigation: Investigation;
+  upgrades?: string[];
   onComplete: (result: EncounterResult) => void;
   onAbort: (result: EncounterResult) => void;
 }
@@ -36,7 +37,7 @@ const KIND_COLOR: Record<Interactable["kind"], string> = {
   terminal: "#6affb0",
 };
 
-export function InvestigationOverlay({ investigation, onComplete, onAbort }: Props) {
+export function InvestigationOverlay({ investigation, upgrades = [], onComplete, onAbort }: Props) {
   const [logged, setLogged] = useState<Set<string>>(new Set());
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [inspecting, setInspecting] = useState<Interactable | null>(null);
@@ -84,8 +85,13 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
     (it) => !visited.has(it.id) && !(it.requiresClueId && !logged.has(it.requiresClueId))
   ).length;
 
+  const hasStabilizer = upgrades.includes("stabilizer");
+  const hasDeepScan = upgrades.includes("deep-scan");
+  /** Stabilizer forgives the first mistake of each encounter. */
+  const netMistakes = Math.max(0, mistakes - (hasStabilizer ? 1 : 0));
+
   const projected: EncounterQuality = gradeEncounter({
-    mistakes,
+    mistakes: netMistakes,
     exploredAll,
     wrongCalls: deduction?.wrongCalls ?? 0,
     falseAccusation: deduction?.falseAccusation ?? false,
@@ -121,7 +127,7 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
       onComplete({
         scenarioId: investigation.scenarioId,
         quality,
-        mistakes,
+        mistakes: netMistakes,
         exploredAll,
         wrongCalls: deduction?.wrongCalls ?? 0,
         falseAccusation: deduction?.falseAccusation ?? false,
@@ -171,6 +177,28 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
           style={{ boxShadow: "0 0 12px rgba(60,232,255,0.4)" }}>
           CLUES {logged.size}/{investigation.requiredClueIds.length}
         </div>
+        <div
+          className="hidden sm:flex items-center gap-2 bg-black border-2 border-pink-400/70 px-3 py-2 whitespace-nowrap"
+          title="Mistakes cost you morality. Three or more and this encounter is a failure."
+        >
+          <span className="pixel-font text-[8px] tracking-widest text-pink-400/90">MISTAKES</span>
+          <span className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-2.5 h-2.5 border"
+                style={{
+                  borderColor: "rgba(255,58,138,0.7)",
+                  background: i < netMistakes ? "#ff3a8a" : "transparent",
+                  boxShadow: i < netMistakes ? "0 0 8px rgba(255,58,138,0.8)" : "none",
+                }}
+              />
+            ))}
+          </span>
+          {hasStabilizer && mistakes > 0 && (
+            <span className="pixel-font text-[8px] text-cyan-300" title="Stabilizer forgave one mistake">🧿</span>
+          )}
+        </div>
         <button
           onClick={() => setConfirmLeave(true)}
           title="Ignore this person and walk away"
@@ -214,7 +242,11 @@ export function InvestigationOverlay({ investigation, onComplete, onAbort }: Pro
                         {it.label}
                       </div>
                       <div className="pixel-font text-[9px] text-cyan-300/60 leading-relaxed">
-                        {gated ? "Do the other steps first." : it.hint}
+                        {gated
+                          ? hasDeepScan && it.requiresClueId
+                            ? `Deep Scan: needs "${cluesById[it.requiresClueId]?.label ?? "another clue"}" first.`
+                            : "Do the other steps first."
+                          : it.hint}
                       </div>
                     </div>
                   </div>
