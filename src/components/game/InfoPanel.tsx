@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect } from "react";
+import { BADGE_CATALOG, UPGRADES } from "@/game/progression";
+import type { EncounterLog } from "@/game/useGameState";
 
 interface SymbolEntry {
   glyph: string;
@@ -31,9 +33,12 @@ const MORALITY_INFO = [
 interface Props {
   open: boolean;
   onClose: () => void;
+  badges?: string[];
+  upgrades?: string[];
+  encounters?: EncounterLog[];
 }
 
-export function InfoPanel({ open, onClose }: Props) {
+export function InfoPanel({ open, onClose, badges = [], upgrades = [], encounters = [] }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -94,6 +99,66 @@ export function InfoPanel({ open, onClose }: Props) {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="mb-6">
+          <h3 className="pixel-font text-[10px] tracking-widest text-cyan-300 mb-3 border-b border-cyan-400/30 pb-1">
+            BADGE GALLERY — {badges.length}/{BADGE_CATALOG.length} EARNED
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {BADGE_CATALOG.map((b) => {
+              const earned = badges.includes(b.name);
+              return (
+                <div
+                  key={b.name}
+                  className="flex gap-3 border-2 p-2"
+                  style={{
+                    borderColor: earned ? "rgba(106,255,176,0.6)" : "rgba(60,232,255,0.15)",
+                    background: earned ? "rgba(106,255,176,0.06)" : "rgba(255,255,255,0.02)",
+                  }}
+                >
+                  <div
+                    className="shrink-0 w-10 h-10 grid place-items-center text-xl"
+                    style={{ filter: earned ? "drop-shadow(0 0 8px #6affb0)" : "grayscale(1) brightness(0.35)" }}
+                  >
+                    {earned ? b.icon : "❔"}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="pixel-font text-[10px] mb-1" style={{ color: earned ? "#6affb0" : "#3ce8ff88" }}>
+                      {earned ? b.name : "LOCKED"}
+                    </div>
+                    <div className="text-[11px] text-cyan-100/90 leading-relaxed">
+                      {earned ? b.blurb : b.criteria}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-[10px] text-cyan-300/60 mt-2 italic">
+            Flawless encounters so far: {encounters.filter((e) => e.quality === "perfect").length}. Badges only come from flawless work.
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <h3 className="pixel-font text-[10px] tracking-widest text-cyan-300 mb-3 border-b border-cyan-400/30 pb-1">
+            INSTALLED MODULES
+          </h3>
+          {upgrades.length === 0 ? (
+            <div className="text-[11px] text-cyan-300/60">No modules yet — you pick one at the charging bay each night.</div>
+          ) : (
+            <div className="space-y-2">
+              {UPGRADES.filter((u) => upgrades.includes(u.id)).map((u) => (
+                <div key={u.id} className="flex gap-3 items-start">
+                  <span className="text-base leading-none">{u.icon}</span>
+                  <div className="min-w-0">
+                    <span className="pixel-font text-[10px] text-pink-300">{u.name}:</span>
+                    <span className="text-[11px] text-cyan-100/90 ml-2">{u.effect}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-6">
