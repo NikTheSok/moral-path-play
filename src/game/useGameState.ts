@@ -156,9 +156,18 @@ export function useGameState() {
   const [encounters, setEncounters] = useState<EncounterLog[]>([]);
   const [badges, setBadges] = useState<string[]>([]);
   const [ignoredScenarios, setIgnoredScenarios] = useState<string[]>([]);
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [upgrades, setUpgrades] = useState<string[]>([]);
+  const [lastXpGain, setLastXpGain] = useState<number | null>(null);
+  const [streakLost, setStreakLost] = useState(false);
   const [paused, setPaused] = useState(false);
   const [lastChoiceLabel, setLastChoiceLabel] = useState<string | null>(null);
-  const [hasSave, setHasSave] = useState<boolean>(() => hasSavedGame());
+  const [hasSave, setHasSave] = useState<boolean>(false);
+
+  // Saved-game lookup is browser-only: read it after hydration.
+  useEffect(() => { setHasSave(hasSavedGame()); }, []);
 
   // Persist whenever meaningful progress changes (skip transient screens)
   useEffect(() => {
@@ -173,9 +182,10 @@ export function useGameState() {
       encounters,
       badges,
       ignoredScenarios,
+      xp, streak, bestStreak, upgrades,
     };
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(data)); setHasSave(true); } catch {}
-  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries, encounters, badges, ignoredScenarios]);
+  }, [screen, morality, day, time, choiceLog, completedScenarios, lastChoiceLabel, journalEntries, encounters, badges, ignoredScenarios, xp, streak, bestStreak, upgrades]);
 
   const reset = useCallback(() => {
     setScreen("menu");
