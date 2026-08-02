@@ -16,6 +16,7 @@ import { EndingScreen } from "./EndingScreen";
 import { AICompanion, type CompanionScreenPos } from "./AICompanion";
 import { InfoPanel } from "./InfoPanel";
 import { InvestigationOverlay } from "./InvestigationOverlay";
+import { RankBar } from "./RankBar";
 import { DAYS } from "@/game/scenarios";
 
 
@@ -63,8 +64,9 @@ export function Game() {
 
       {g.screen === "playing" && (
         <>
-          <div className="absolute top-4 left-4 z-20">
+          <div className="absolute top-4 left-4 z-20 space-y-2">
             <MoralityPanel morality={g.morality} />
+            <RankBar xp={g.xp} streak={g.streak} lastXpGain={g.lastXpGain} streakLost={g.streakLost} />
           </div>
           <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
             <div className="pixel-font text-[10px] tracking-widest bg-black/70 border-2 border-cyan-400/70 px-3 py-2 text-cyan-300" style={{ boxShadow: "0 0 16px rgba(60,232,255,0.4)" }}>
@@ -108,6 +110,7 @@ export function Game() {
               <InvestigationOverlay
                 key={g.activeInvestigation.scenarioId}
                 investigation={g.activeInvestigation}
+                upgrades={g.upgrades}
                 onComplete={g.completeInvestigation}
                 onAbort={g.abortInvestigation}
               />
@@ -123,7 +126,13 @@ export function Game() {
             onMessageExpired={g.clearLastChoice}
           />
 
-          <InfoPanel open={infoOpen} onClose={() => setInfoOpen(false)} />
+          <InfoPanel
+            open={infoOpen}
+            onClose={() => setInfoOpen(false)}
+            badges={g.badges}
+            upgrades={g.upgrades}
+            encounters={g.encounters}
+          />
 
 
           <PauseMenu
@@ -162,6 +171,13 @@ export function Game() {
             morality={g.morality}
             isFinal={g.day >= 5}
             journalEntries={g.journalEntries.filter((j) => j.day === g.day)}
+            encounters={g.encounters}
+            xp={g.xp}
+            streak={g.streak}
+            bestStreak={g.bestStreak}
+            badgesToday={g.encounters.filter((e) => e.day === g.day && e.quality === "perfect").length}
+            upgrades={g.upgrades}
+            onPickUpgrade={g.pickUpgrade}
             onContinue={g.beginNextDay}
             onMenu={g.reset}
           />
@@ -171,6 +187,11 @@ export function Game() {
             key="end"
             morality={g.morality}
             log={g.choiceLog}
+            xp={g.xp}
+            badges={g.badges}
+            bestStreak={g.bestStreak}
+            encounters={g.encounters}
+            ignoredCount={g.ignoredScenarios.length}
             onRestart={g.startGame}
             onMenu={g.reset}
           />

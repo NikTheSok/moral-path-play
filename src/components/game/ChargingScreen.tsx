@@ -3,13 +3,22 @@ import type { DayNumber, Morality } from "@/game/types";
 import { DAYS } from "@/game/scenarios";
 import { MoralityPanel } from "./MoralityPanel";
 import { RobotSprite } from "./RobotSprite";
-import type { JournalEntry } from "@/game/useGameState";
+import type { EncounterLog, JournalEntry } from "@/game/useGameState";
+import { DayReport } from "./DayReport";
+import { UpgradeChoice } from "./UpgradeChoice";
 
 interface Props {
   day: DayNumber;
   morality: Morality;
   isFinal: boolean;
   journalEntries?: JournalEntry[];
+  encounters?: EncounterLog[];
+  xp?: number;
+  streak?: number;
+  bestStreak?: number;
+  badgesToday?: number;
+  upgrades?: string[];
+  onPickUpgrade?: (id: string) => void;
   onContinue: () => void;
   onMenu: () => void;
 }
@@ -53,7 +62,11 @@ function behavioralReadout(m: Morality): { dominant: string; trend: string; flag
   return { dominant, trend, flag };
 }
 
-export function ChargingScreen({ day, morality, isFinal, journalEntries = [], onContinue, onMenu }: Props) {
+export function ChargingScreen({
+  day, morality, isFinal, journalEntries = [],
+  encounters = [], xp = 0, streak = 0, bestStreak = 0, badgesToday = 0,
+  upgrades = [], onPickUpgrade, onContinue, onMenu,
+}: Props) {
   const nextDay = Math.min(5, day + 1) as DayNumber;
   const readout = behavioralReadout(morality);
   const observations = narrativeObservations(day, morality);
@@ -106,6 +119,19 @@ export function ChargingScreen({ day, morality, isFinal, journalEntries = [], on
             {readout.flag}
           </div>
         </motion.div>
+
+        <DayReport
+          day={day}
+          encounters={encounters}
+          xp={xp}
+          streak={streak}
+          bestStreak={bestStreak}
+          badgesToday={badgesToday}
+        />
+
+        {!isFinal && onPickUpgrade && (
+          <UpgradeChoice day={day} owned={upgrades} onPick={onPickUpgrade} />
+        )}
 
         {observations.length > 0 && (
           <motion.div
