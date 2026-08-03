@@ -22,7 +22,7 @@ const PADS = [
   { key: "4", color: "#6affb0", glow: "rgba(106,255,176,0.7)" }, // green
 ];
 
-export function SequenceChallenge({ size, label, onComplete, onCancel }: Props) {
+export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCancel }: Props) {
   const pattern = useMemo(
     () => Array.from({ length: size }, () => Math.floor(Math.random() * 4)),
     // regenerate whenever size changes or after a fail
