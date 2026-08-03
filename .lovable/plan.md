@@ -1,68 +1,31 @@
-## Goal
+# Fix XP popup + make installed modules real
 
-Keep every existing system (world, investigations, deductions, challenges, morality, endings). Add the missing *reward loop* so good play visibly pays off, and make progression feel earned rather than just scored.
+Two confirmed problems:
 
-## 1. Progression: XP + Rank
+1. **The "+X XP" popup never disappears.** The state that drives it (`lastXpGain`) is set when an encounter ends but nothing ever resets it — the clear function exists in game state but is never called anywhere.
+2. **Modules you pick at the Charging Bay mostly do nothing and are invisible during play.** Only two of the five are actually wired into gameplay (Deep Scan and Stabilizer), and even those give no on-screen feedback. Empathy Core, Memory Buffer and Rapid Servo currently have no effect at all. The only place modules appear is a list inside the field manual.
 
-- Each encounter already produces a score (FLAWLESS +10 → FAILED −15). Feed that into a persistent `xp` value in game state and save.
-- Six ranks: `Prototype → Apprentice → Assistant → Guardian → Paragon → Human Heart`. Rank shown in the HUD next to the morality panel, with an animated bar that fills after each encounter.
-- Rank-up plays a short cinematic burst (reuse the BadgeAward animation shell) and Echo-9 comments on it.
+## What changes
 
-## 2. Streaks and combos
+### XP popup
+- The floating "+X XP" and "STREAK LOST" flashes auto-dismiss about 1.5s after they appear, then the popup is gone until the next encounter.
 
-- Track a `streak` of consecutive clean encounters (no wrong deduction calls, no ignored NPCs).
-- Streak 2 = +25% XP, streak 3 = +50% and a "PERFECT DAY" bonus at the charging bay.
-- Any ignore, failure, or false accusation breaks the streak with an on-screen "STREAK LOST" beat — mistakes cost something visible, not just an invisible number.
+### Modules visible during play
+- A small module strip sits under the rank bar in the HUD, showing the icon of every installed module. Hovering shows its name and effect.
+- When a module actually does something in an encounter, it says so: e.g. "STABILIZER ABSORBED ONE MISTAKE", "EMPATHY CORE HINT USED", "RAPID SERVO +15s".
 
-## 3. Unlockable robot upgrades (the real carrot)
-
-Spend earned XP at the Charging Bay between days on 1 of 3 offered modules:
-
-| Module | Effect |
-| --- | --- |
-| Deep Scan | Reveals one extra detail per interactable |
-| Empathy Core | One free "gut feeling" hint per deduction |
-| Stabilizer | One free retry in a mini-game without counting a mistake |
-| Memory Buffer | Clue log stays visible during the challenge |
-| Rapid Servo | Extra time on timed challenges |
-
-Only 4 picks across 5 days, so choices matter and replays differ. Upgrades affect the existing challenge components through simple props — no rebuild.
-
-## 4. Make badges mean something
-
-- Badges currently require perfect play; keep that but add a **Badge Gallery** tab in the Info Panel showing earned/locked badges with silhouettes and the criteria for each.
-- Collecting all 3 badges in a day unlocks a bonus journal "insight" entry written from the robot's perspective — the emotional payoff for mastery.
-- Collecting 12+ badges overall unlocks a secret 6th ending: **Emergent Soul**.
-
-## 5. Better end-of-day payoff
-
-At the Charging Bay, replace the flat recap with a scored day report:
-- Per-encounter row: title, grade chip (FLAWLESS/SOLVED/MESSY/BOTCHED/FAILED), XP earned, badge icon.
-- Day totals: XP, streak bonus, badges, rank progress bar animating up.
-- One "what you learned" line tied to the day's virtue, plus one "what you missed" line if any lead went unexplored — so failure teaches instead of just punishing.
-
-## 6. Make challenges make more sense
-
-- Every challenge gets a visible **objective banner** ("Return 3 comforting items — pick wisely, wrong picks cost trust") and a **mistake meter** (3 pips) so consequences are legible before committing.
-- Wrong actions always print the *reason* in the clue log, not just "not quite".
-- Clues gathered before the challenge now actually change it: unexplored leads mean one option in the deduction is unavailable/greyed, giving exploration a mechanical purpose rather than just a score modifier.
-
-## 7. Ending strengthened
-
-Ending computation additionally weighs rank, badge count, streaks, and ignored-NPC count, and the ending screen shows a final scorecard (rank, XP, badges, ignored count, best streak) before the cinematic — so the 5 days visibly add up to the outcome.
+### Modules that actually work
+- **Deep Scan** (already partly working) — locked leads also get a "scan" tint in the lead list so the effect is noticeable.
+- **Stabilizer** — already forgives the first mistake; the mistake pips now show the forgiven pip in a different colour with a "STABILIZER" tag.
+- **Empathy Core** — adds a one-use "GUT FEELING" button in the conclusion step that eliminates one wrong option (not the accusation-free easy path — it removes a plainly wrong one).
+- **Memory Buffer** — the evidence/clue board stays open and pinned during the mini-game and the conclusion step instead of collapsing.
+- **Rapid Servo** — timed challenges start with extra seconds on the clock.
 
 ## Technical notes
 
-- New state in `useGameState.ts`: `xp`, `rank`, `streak`, `bestStreak`, `upgrades: string[]`; all added to the existing save object (backwards compatible with optional fields).
-- New files: `src/game/progression.ts` (XP tables, ranks, upgrade defs), `src/components/game/RankBar.tsx`, `src/components/game/UpgradeChoice.tsx`, `src/components/game/DayReport.tsx`, badge gallery tab inside `InfoPanel.tsx`.
-- Edits: `ChargingScreen.tsx` (day report + upgrade pick), `InvestigationOverlay.tsx` (objective banner, mistake pips, upgrade effects), `DeductionChallenge.tsx` (gating by explored clues, Empathy Core hint), `EndingScreen.tsx` (scorecard + 6th ending).
-- Also fix the current main-menu hydration mismatch (saved-game check runs during SSR) while in these files.
-- Typecheck with `tsgo` after each phase.
-
-## Delivery order
-
-1. `progression.ts` + state/save + RankBar in HUD.
-2. Streaks, XP awards, grade→XP wiring in the overlay.
-3. Day report + upgrade choice at the Charging Bay.
-4. Upgrade effects inside challenges + objective banners/mistake pips.
-5. Badge gallery, bonus insights, secret ending, ending scorecard.
+- `src/components/game/RankBar.tsx`: `useEffect` timer keyed on the flash value, calling a new `onFlashDone` prop; `Game.tsx` passes `g.clearXpFlash`.
+- `src/components/game/Game.tsx`: render a `ModuleStrip` (new small component in `src/components/game/ModuleStrip.tsx`) below `RankBar`, fed by `g.upgrades` and `UPGRADES` from `src/game/progression.ts`.
+- `src/components/game/InvestigationOverlay.tsx`: pass `upgrades` down into the challenge components and `DeductionChallenge`; add module-activation toast text; keep evidence panel mounted when `memory-buffer` is owned.
+- `src/components/game/challenges/DeductionChallenge.tsx`: optional `empathyCore` prop enabling the one-use eliminate-a-wrong-option action.
+- Timed challenges (`SequenceChallenge`, `BatteryChallenge`, `CircuitChallenge`, `HiddenObjectChallenge` where a timer exists): accept a `bonusSeconds` prop, set from `rapid-servo`.
+- No changes to scoring formulas, save format, or scenario data.
