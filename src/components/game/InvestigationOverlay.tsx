@@ -186,20 +186,34 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
         >
           <span className="pixel-font text-[8px] tracking-widest text-pink-400/90">MISTAKES</span>
           <span className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="w-2.5 h-2.5 border"
-                style={{
-                  borderColor: "rgba(255,58,138,0.7)",
-                  background: i < netMistakes ? "#ff3a8a" : "transparent",
-                  boxShadow: i < netMistakes ? "0 0 8px rgba(255,58,138,0.8)" : "none",
-                }}
-              />
-            ))}
+            {[0, 1, 2].map((i) => {
+              const shielded = hasStabilizer && i === 0;
+              const filled = i < netMistakes;
+              const absorbed = shielded && mistakes > 0;
+              return (
+                <span
+                  key={i}
+                  className="w-2.5 h-2.5 border"
+                  style={{
+                    borderColor: shielded ? "rgba(60,232,255,0.8)" : "rgba(255,58,138,0.7)",
+                    background: filled ? "#ff3a8a" : absorbed ? "#3ce8ff" : "transparent",
+                    boxShadow: filled
+                      ? "0 0 8px rgba(255,58,138,0.8)"
+                      : absorbed
+                      ? "0 0 8px rgba(60,232,255,0.8)"
+                      : "none",
+                  }}
+                />
+              );
+            })}
           </span>
-          {hasStabilizer && mistakes > 0 && (
-            <span className="pixel-font text-[8px] text-cyan-300" title="Stabilizer forgave one mistake">🧿</span>
+          {hasStabilizer && (
+            <span
+              className="pixel-font text-[8px] text-cyan-300"
+              title="Stabilizer forgives your first mistake in this encounter"
+            >
+              🧿 {mistakes > 0 ? "ABSORBED" : "STABILIZER"}
+            </span>
           )}
         </div>
         <button
