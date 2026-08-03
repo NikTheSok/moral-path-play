@@ -28,6 +28,7 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
   const options = useShuffled(deduction.options);
   const [selected, setSelected] = useState<string | null>(null);
   const [wrongIds, setWrongIds] = useState<string[]>([]);
+  const [hintedIds, setHintedIds] = useState<string[]>([]);
   const [accused, setAccused] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [message, setMessage] = useState<string>(
@@ -39,12 +40,13 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
   /** Empathy Core: cross out one plainly wrong option (never a false accusation) — free, once. */
   const useGutFeeling = () => {
     if (hintUsed || done) return;
+    const taken = [...wrongIds, ...hintedIds];
     const target =
-      options.find((o) => !o.correct && !o.accusation && !wrongIds.includes(o.id)) ??
-      options.find((o) => !o.correct && !wrongIds.includes(o.id));
+      options.find((o) => !o.correct && !o.accusation && !taken.includes(o.id)) ??
+      options.find((o) => !o.correct && !taken.includes(o.id));
     if (!target) return;
     setHintUsed(true);
-    setWrongIds((w) => [...w, target.id]);
+    setHintedIds((h) => [...h, target.id]);
     if (selected === target.id) setSelected(null);
     setTone("neutral");
     setMessage("💗 Empathy Core: something about that option feels wrong to you. It's off the table — free of charge.");
