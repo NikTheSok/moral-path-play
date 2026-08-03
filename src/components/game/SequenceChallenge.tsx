@@ -9,6 +9,8 @@ import { motion } from "framer-motion";
 interface Props {
   size: number;                 // number of steps in the pattern
   label: string;
+  /** Rapid Servo module: pattern plays back slower and clearer. */
+  slowPlayback?: boolean;
   onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
