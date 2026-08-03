@@ -132,7 +132,7 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
 
       <div className="grid gap-2">
         {options.map((o) => {
-          const dead = wrongIds.includes(o.id);
+          const dead = wrongIds.includes(o.id) || hintedIds.includes(o.id);
           const on = selected === o.id;
           return (
             <button
@@ -147,6 +147,7 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
                   : "border-cyan-400/60 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-400/10"
               }`}
             >
+              {hintedIds.includes(o.id) && <span className="text-pink-300/70 mr-1">💗</span>}
               {o.label}
             </button>
           );
@@ -157,13 +158,25 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
         <div className="pixel-font text-[9px] text-pink-300/70 tracking-widest">
           CALLS LEFT {Math.max(0, MAX_CALLS - wrongIds.length)}
         </div>
-        <button
-          onClick={commit}
-          disabled={!selected || done}
-          className="pixel-font text-[10px] tracking-widest px-4 py-2 bg-pink-400 text-black border-2 border-pink-200 hover:bg-pink-300 disabled:opacity-30"
-        >
-          ✓ STATE IT OUT LOUD
-        </button>
+        <div className="flex flex-wrap gap-2 items-center">
+          {empathyCore && (
+            <button
+              onClick={useGutFeeling}
+              disabled={hintUsed || done}
+              title="Empathy Core: rules out one wrong option, free of charge"
+              className="pixel-font text-[9px] tracking-widest px-3 py-2 border-2 border-pink-400/70 text-pink-200 hover:bg-pink-400/10 disabled:opacity-30"
+            >
+              💗 {hintUsed ? "GUT FEELING USED" : "GUT FEELING"}
+            </button>
+          )}
+          <button
+            onClick={commit}
+            disabled={!selected || done}
+            className="pixel-font text-[10px] tracking-widest px-4 py-2 bg-pink-400 text-black border-2 border-pink-200 hover:bg-pink-300 disabled:opacity-30"
+          >
+            ✓ STATE IT OUT LOUD
+          </button>
+        </div>
       </div>
     </motion.div>
   );
