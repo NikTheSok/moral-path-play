@@ -6,6 +6,8 @@ interface Props {
   deduction: Deduction;
   /** clue labels the player actually gathered — shown as their evidence board */
   evidence: { label: string; detail: string }[];
+  /** Empathy Core module: one-use gut feeling that removes a plainly wrong option. */
+  empathyCore?: boolean;
   onResolve: (r: { wrongCalls: number; falseAccusation: boolean; solved: boolean }) => void;
 }
 
