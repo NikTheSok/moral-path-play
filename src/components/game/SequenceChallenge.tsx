@@ -51,8 +51,8 @@ export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCan
         timerRef.current = window.setTimeout(() => {
           i++;
           step();
-        }, 140);
-      }, 420);
+        }, slowPlayback ? 260 : 140);
+      }, slowPlayback ? 700 : 420);
     };
     // small opening pause
     timerRef.current = window.setTimeout(step, 600);
