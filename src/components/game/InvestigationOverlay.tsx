@@ -485,6 +485,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
               <SequenceChallenge
                 size={ch.size ?? 4}
                 label={ch.label}
+                slowPlayback={hasRapidServo}
                 onComplete={handleChallengeComplete}
                 onCancel={() => setChallengeOpen(false)}
               />
