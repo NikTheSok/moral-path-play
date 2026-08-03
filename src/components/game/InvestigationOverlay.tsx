@@ -565,6 +565,27 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
         )}
       </AnimatePresence>
 
+      {/* Memory Buffer module: evidence stays pinned while you solve or deduce */}
+      {hasMemoryBuffer && (challengeOpen || deductionOpen) && logged.size > 0 && (
+        <div
+          className="absolute top-4 right-4 z-30 w-60 max-h-[60vh] overflow-y-auto bg-black/90 border-2 border-cyan-400/60 p-2"
+          style={{ boxShadow: "0 0 16px rgba(60,232,255,0.35)" }}
+        >
+          <div className="pixel-font text-[8px] tracking-[0.3em] text-cyan-300/90 mb-2">
+            🧠 MEMORY BUFFER · EVIDENCE
+          </div>
+          <ul className="space-y-1.5">
+            {investigation.clues
+              .filter((c) => logged.has(c.id))
+              .map((c) => (
+                <li key={c.id} className="pixel-font text-[8px] text-cyan-100/85 leading-[1.7] border-l-2 border-pink-400/60 pl-2">
+                  {c.label}
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
       <AnimatePresence>
         {deductionOpen && investigation.deduction && (
           <motion.div
@@ -576,6 +597,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
             <DeductionChallenge
               deduction={investigation.deduction}
               evidence={investigation.clues.filter((c) => logged.has(c.id))}
+              empathyCore={hasEmpathyCore}
               onResolve={(r) => {
                 setDeduction(r);
                 setDeductionOpen(false);
@@ -584,6 +606,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
           </motion.div>
         )}
       </AnimatePresence>
+
 
 
 
