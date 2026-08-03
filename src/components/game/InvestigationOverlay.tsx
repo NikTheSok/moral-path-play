@@ -87,6 +87,9 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
 
   const hasStabilizer = upgrades.includes("stabilizer");
   const hasDeepScan = upgrades.includes("deep-scan");
+  const hasEmpathyCore = upgrades.includes("empathy-core");
+  const hasMemoryBuffer = upgrades.includes("memory-buffer");
+  const hasRapidServo = upgrades.includes("rapid-servo");
   /** Stabilizer forgives the first mistake of each encounter. */
   const netMistakes = Math.max(0, mistakes - (hasStabilizer ? 1 : 0));
 
