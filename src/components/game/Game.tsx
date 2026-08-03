@@ -17,6 +17,7 @@ import { AICompanion, type CompanionScreenPos } from "./AICompanion";
 import { InfoPanel } from "./InfoPanel";
 import { InvestigationOverlay } from "./InvestigationOverlay";
 import { RankBar } from "./RankBar";
+import { ModuleStrip } from "./ModuleStrip";
 import { DAYS } from "@/game/scenarios";
 
 
