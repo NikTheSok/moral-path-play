@@ -59,7 +59,7 @@ export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCan
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
-  }, [pattern, phase, attempt]);
+  }, [pattern, phase, attempt, slowPlayback]);
 
   const press = (padIdx: number) => {
     if (phase !== "input") return;
