@@ -87,6 +87,9 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
 
   const hasStabilizer = upgrades.includes("stabilizer");
   const hasDeepScan = upgrades.includes("deep-scan");
+  const hasEmpathyCore = upgrades.includes("empathy-core");
+  const hasMemoryBuffer = upgrades.includes("memory-buffer");
+  const hasRapidServo = upgrades.includes("rapid-servo");
   /** Stabilizer forgives the first mistake of each encounter. */
   const netMistakes = Math.max(0, mistakes - (hasStabilizer ? 1 : 0));
 
@@ -183,20 +186,34 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
         >
           <span className="pixel-font text-[8px] tracking-widest text-pink-400/90">MISTAKES</span>
           <span className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="w-2.5 h-2.5 border"
-                style={{
-                  borderColor: "rgba(255,58,138,0.7)",
-                  background: i < netMistakes ? "#ff3a8a" : "transparent",
-                  boxShadow: i < netMistakes ? "0 0 8px rgba(255,58,138,0.8)" : "none",
-                }}
-              />
-            ))}
+            {[0, 1, 2].map((i) => {
+              const shielded = hasStabilizer && i === 0;
+              const filled = i < netMistakes;
+              const absorbed = shielded && mistakes > 0;
+              return (
+                <span
+                  key={i}
+                  className="w-2.5 h-2.5 border"
+                  style={{
+                    borderColor: shielded ? "rgba(60,232,255,0.8)" : "rgba(255,58,138,0.7)",
+                    background: filled ? "#ff3a8a" : absorbed ? "#3ce8ff" : "transparent",
+                    boxShadow: filled
+                      ? "0 0 8px rgba(255,58,138,0.8)"
+                      : absorbed
+                      ? "0 0 8px rgba(60,232,255,0.8)"
+                      : "none",
+                  }}
+                />
+              );
+            })}
           </span>
-          {hasStabilizer && mistakes > 0 && (
-            <span className="pixel-font text-[8px] text-cyan-300" title="Stabilizer forgave one mistake">🧿</span>
+          {hasStabilizer && (
+            <span
+              className="pixel-font text-[8px] text-cyan-300"
+              title="Stabilizer forgives your first mistake in this encounter"
+            >
+              🧿 {mistakes > 0 ? "ABSORBED" : "STABILIZER"}
+            </span>
           )}
         </div>
         <button
@@ -225,7 +242,9 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
                   disabled={!!gated}
                   className={`text-left relative bg-black/80 border-2 p-3 transition ${
                     gated
-                      ? "border-cyan-400/20 opacity-40 cursor-not-allowed"
+                      ? hasDeepScan
+                        ? "border-cyan-300/50 opacity-70 bg-cyan-400/5 cursor-not-allowed"
+                        : "border-cyan-400/20 opacity-40 cursor-not-allowed"
                       : done
                       ? "border-green-400/70 hover:bg-green-400/10"
                       : "border-cyan-400/60 hover:bg-cyan-400/10 hover:border-cyan-300"
@@ -466,6 +485,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
               <SequenceChallenge
                 size={ch.size ?? 4}
                 label={ch.label}
+                slowPlayback={hasRapidServo}
                 onComplete={handleChallengeComplete}
                 onCancel={() => setChallengeOpen(false)}
               />
@@ -545,6 +565,27 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
         )}
       </AnimatePresence>
 
+      {/* Memory Buffer module: evidence stays pinned while you solve or deduce */}
+      {hasMemoryBuffer && (challengeOpen || deductionOpen) && logged.size > 0 && (
+        <div
+          className="absolute top-4 right-4 z-30 w-60 max-h-[60vh] overflow-y-auto bg-black/90 border-2 border-cyan-400/60 p-2"
+          style={{ boxShadow: "0 0 16px rgba(60,232,255,0.35)" }}
+        >
+          <div className="pixel-font text-[8px] tracking-[0.3em] text-cyan-300/90 mb-2">
+            🧠 MEMORY BUFFER · EVIDENCE
+          </div>
+          <ul className="space-y-1.5">
+            {investigation.clues
+              .filter((c) => logged.has(c.id))
+              .map((c) => (
+                <li key={c.id} className="pixel-font text-[8px] text-cyan-100/85 leading-[1.7] border-l-2 border-pink-400/60 pl-2">
+                  {c.label}
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
       <AnimatePresence>
         {deductionOpen && investigation.deduction && (
           <motion.div
@@ -556,6 +597,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
             <DeductionChallenge
               deduction={investigation.deduction}
               evidence={investigation.clues.filter((c) => logged.has(c.id))}
+              empathyCore={hasEmpathyCore}
               onResolve={(r) => {
                 setDeduction(r);
                 setDeductionOpen(false);
@@ -564,6 +606,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
           </motion.div>
         )}
       </AnimatePresence>
+
 
 
 

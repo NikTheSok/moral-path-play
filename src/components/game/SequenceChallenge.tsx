@@ -9,6 +9,8 @@ import { motion } from "framer-motion";
 interface Props {
   size: number;                 // number of steps in the pattern
   label: string;
+  /** Rapid Servo module: pattern plays back slower and clearer. */
+  slowPlayback?: boolean;
   onComplete: (mistakes: number) => void;
   onCancel: () => void;
 }
@@ -20,7 +22,7 @@ const PADS = [
   { key: "4", color: "#6affb0", glow: "rgba(106,255,176,0.7)" }, // green
 ];
 
-export function SequenceChallenge({ size, label, onComplete, onCancel }: Props) {
+export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCancel }: Props) {
   const pattern = useMemo(
     () => Array.from({ length: size }, () => Math.floor(Math.random() * 4)),
     // regenerate whenever size changes or after a fail
@@ -49,15 +51,15 @@ export function SequenceChallenge({ size, label, onComplete, onCancel }: Props) 
         timerRef.current = window.setTimeout(() => {
           i++;
           step();
-        }, 140);
-      }, 420);
+        }, slowPlayback ? 260 : 140);
+      }, slowPlayback ? 700 : 420);
     };
     // small opening pause
     timerRef.current = window.setTimeout(step, 600);
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
-  }, [pattern, phase, attempt]);
+  }, [pattern, phase, attempt, slowPlayback]);
 
   const press = (padIdx: number) => {
     if (phase !== "input") return;

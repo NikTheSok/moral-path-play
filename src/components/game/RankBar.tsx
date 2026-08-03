@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { rankFor, nextRank, rankProgress, streakMultiplier } from "@/game/progression";
 
@@ -7,12 +8,22 @@ interface Props {
   lastXpGain?: number | null;
   streakLost?: boolean;
   compact?: boolean;
+  /** Called once the XP / streak flash has been on screen long enough. */
+  onFlashDone?: () => void;
 }
 
-export function RankBar({ xp, streak, lastXpGain, streakLost, compact }: Props) {
+export function RankBar({ xp, streak, lastXpGain, streakLost, compact, onFlashDone }: Props) {
   const rank = rankFor(xp);
   const next = nextRank(xp);
   const pct = rankProgress(xp) * 100;
+
+  const flashing = (typeof lastXpGain === "number" && lastXpGain !== 0) || streakLost;
+  useEffect(() => {
+    if (!flashing || !onFlashDone) return;
+    const t = window.setTimeout(onFlashDone, 1800);
+    return () => window.clearTimeout(t);
+  }, [flashing, lastXpGain, streakLost, onFlashDone]);
+
 
   return (
     <div

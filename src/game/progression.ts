@@ -76,7 +76,7 @@ export const UPGRADES: Upgrade[] = [
   { id: "empathy-core", name: "Empathy Core", icon: "💗", effect: "One gut-feeling hint is available in every conclusion." },
   { id: "stabilizer", name: "Stabilizer", icon: "🧿", effect: "Your first mistake in each encounter is forgiven." },
   { id: "memory-buffer", name: "Memory Buffer", icon: "🧠", effect: "Your evidence board stays pinned while you work." },
-  { id: "rapid-servo", name: "Rapid Servo", icon: "⚡", effect: "Timed challenges give you extra seconds." },
+  { id: "rapid-servo", name: "Rapid Servo", icon: "⚡", effect: "Pattern challenges play back slower and clearer." },
 ];
 
 export function upgradeById(id: string): Upgrade | undefined {
