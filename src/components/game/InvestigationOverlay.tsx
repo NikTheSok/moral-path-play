@@ -242,7 +242,9 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
                   disabled={!!gated}
                   className={`text-left relative bg-black/80 border-2 p-3 transition ${
                     gated
-                      ? "border-cyan-400/20 opacity-40 cursor-not-allowed"
+                      ? hasDeepScan
+                        ? "border-cyan-300/50 opacity-70 bg-cyan-400/5 cursor-not-allowed"
+                        : "border-cyan-400/20 opacity-40 cursor-not-allowed"
                       : done
                       ? "border-green-400/70 hover:bg-green-400/10"
                       : "border-cyan-400/60 hover:bg-cyan-400/10 hover:border-cyan-300"
