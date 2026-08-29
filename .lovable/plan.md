@@ -6,9 +6,11 @@ Echo-9 (the drone) becomes the single narrator for everything that isn't spoken 
 
 Add a small shared "Echo-9 bus" (a React context + hook) that any component can call to make the drone say something, with a tone: `good`, `bad`, `warn`, or `neutral`.
 
-- In the open world, the line appears in the existing bubble anchored to the flying drone.
-- Inside overlays and challenges (where the drone isn't on screen), the same line appears in a docked Echo-9 panel — small drone avatar + speech panel, pinned bottom-left above the overlay, colored by tone (cyan neutral, green good, pink/red bad, amber warn).
-- Lines queue: a new line replaces the old one, short lines auto-dismiss (~4s), important ones stay until the next.
+- No second companion is introduced: the existing `AICompanion` (Echo-9) component stays the only drone and speaks every line.
+- In the open world, the line appears in its existing bubble anchored to the flying drone.
+- When an overlay or challenge covers the world, the same component keeps rendering above the overlay, with its bubble pinned to a corner instead of tracking the drone's off-screen position — same drone, same voice, just repositioned.
+- Bubble color follows tone (cyan neutral, green good, pink/red bad, amber warn). A new line replaces the old one; short lines auto-dismiss (~4s).
+
 
 ## 2. Move all non-character messages to Echo-9
 
