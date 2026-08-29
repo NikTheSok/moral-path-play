@@ -47,9 +47,9 @@ Add themed scrollbar utilities in `src/styles.css` (thin, square, neon track + g
 
 ## Technical notes
 
-- New: `src/game/echo.tsx` (context, provider, `useEcho()`, tone typing) and `src/components/game/EchoDock.tsx` (docked panel used over overlays).
-- `AICompanion.tsx` reads from the Echo bus instead of only `lastChoice`, keeping its position-anchored bubble and tone-based styling.
-- Provider mounts in `Game.tsx` above the world and all overlays; `EchoDock` renders only when an overlay/challenge is active so the drone bubble and dock never both show.
+- New: `src/game/echo.tsx` only (context, provider, `useEcho()`, tone typing). No new companion component.
+- `AICompanion.tsx` is extended, not replaced: it reads from the Echo bus in addition to `lastChoice`, gains tone-based styling, and switches between drone-anchored and corner-pinned placement depending on whether an overlay is open.
+- Provider mounts in `Game.tsx` above the world and all overlays; the single `AICompanion` instance moves up in the tree so it renders over overlays too.
 - Challenge components drop their local `message`/`messageTone` state and call `echo.say(text, tone)`; their JSX banners are removed.
 - Line pools live in one file so wording stays consistent and easy to extend.
 - No gameplay balance, scoring, or save-format changes.
