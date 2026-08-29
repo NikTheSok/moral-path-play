@@ -42,7 +42,7 @@ Rewrite the Protocol Manual (`Instructions.tsx`) to match the current game: inve
 Add themed scrollbar utilities in `src/styles.css` (thin, square, neon track + glowing thumb, `scrollbar-color` fallback for Firefox) and apply per surface:
 
 - Cyan variant — investigation overlay, info panel, evidence list, most challenges
-- Pink variant — deduction challenge, Echo-9 panels
+- Pink variant — deduction challenge
 - Amber/warm variant — charging screen, day report, ending screen
 
 ## Technical notes
