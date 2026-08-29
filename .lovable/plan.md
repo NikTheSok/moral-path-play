@@ -6,9 +6,11 @@ Echo-9 (the drone) becomes the single narrator for everything that isn't spoken 
 
 Add a small shared "Echo-9 bus" (a React context + hook) that any component can call to make the drone say something, with a tone: `good`, `bad`, `warn`, or `neutral`.
 
-- In the open world, the line appears in the existing bubble anchored to the flying drone.
-- Inside overlays and challenges (where the drone isn't on screen), the same line appears in a docked Echo-9 panel — small drone avatar + speech panel, pinned bottom-left above the overlay, colored by tone (cyan neutral, green good, pink/red bad, amber warn).
-- Lines queue: a new line replaces the old one, short lines auto-dismiss (~4s), important ones stay until the next.
+- No second companion is introduced: the existing `AICompanion` (Echo-9) component stays the only drone and speaks every line.
+- In the open world, the line appears in its existing bubble anchored to the flying drone.
+- When an overlay or challenge covers the world, the same component keeps rendering above the overlay, with its bubble pinned to a corner instead of tracking the drone's off-screen position — same drone, same voice, just repositioned.
+- Bubble color follows tone (cyan neutral, green good, pink/red bad, amber warn). A new line replaces the old one; short lines auto-dismiss (~4s).
+
 
 ## 2. Move all non-character messages to Echo-9
 
@@ -40,14 +42,14 @@ Rewrite the Protocol Manual (`Instructions.tsx`) to match the current game: inve
 Add themed scrollbar utilities in `src/styles.css` (thin, square, neon track + glowing thumb, `scrollbar-color` fallback for Firefox) and apply per surface:
 
 - Cyan variant — investigation overlay, info panel, evidence list, most challenges
-- Pink variant — deduction challenge, Echo-9 panels
+- Pink variant — deduction challenge
 - Amber/warm variant — charging screen, day report, ending screen
 
 ## Technical notes
 
-- New: `src/game/echo.tsx` (context, provider, `useEcho()`, tone typing) and `src/components/game/EchoDock.tsx` (docked panel used over overlays).
-- `AICompanion.tsx` reads from the Echo bus instead of only `lastChoice`, keeping its position-anchored bubble and tone-based styling.
-- Provider mounts in `Game.tsx` above the world and all overlays; `EchoDock` renders only when an overlay/challenge is active so the drone bubble and dock never both show.
+- New: `src/game/echo.tsx` only (context, provider, `useEcho()`, tone typing). No new companion component.
+- `AICompanion.tsx` is extended, not replaced: it reads from the Echo bus in addition to `lastChoice`, gains tone-based styling, and switches between drone-anchored and corner-pinned placement depending on whether an overlay is open.
+- Provider mounts in `Game.tsx` above the world and all overlays; the single `AICompanion` instance moves up in the tree so it renders over overlays too.
 - Challenge components drop their local `message`/`messageTone` state and call `echo.say(text, tone)`; their JSX banners are removed.
 - Line pools live in one file so wording stays consistent and easy to extend.
 - No gameplay balance, scoring, or save-format changes.
