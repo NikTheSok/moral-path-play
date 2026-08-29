@@ -1,0 +1,53 @@
+# Echo-9 as the Game's Voice
+
+Echo-9 (the drone) becomes the single narrator for everything that isn't spoken by the robot protagonist or an NPC: challenge feedback, mistake warnings, praise, hints, and system notices. Plus refreshed instructions and themed scrollbars.
+
+## 1. One Echo-9 voice channel
+
+Add a small shared "Echo-9 bus" (a React context + hook) that any component can call to make the drone say something, with a tone: `good`, `bad`, `warn`, or `neutral`.
+
+- In the open world, the line appears in the existing bubble anchored to the flying drone.
+- Inside overlays and challenges (where the drone isn't on screen), the same line appears in a docked Echo-9 panel — small drone avatar + speech panel, pinned bottom-left above the overlay, colored by tone (cyan neutral, green good, pink/red bad, amber warn).
+- Lines queue: a new line replaces the old one, short lines auto-dismiss (~4s), important ones stay until the next.
+
+## 2. Move all non-character messages to Echo-9
+
+Every challenge currently renders its own local feedback banner. Those banners are removed and their text is sent to Echo-9 instead, rewritten in his voice (analytical but warm, lightly sarcastic, encouraging):
+
+- Hidden Object, Battery, Circuit, Sequence challenges
+- Sort, Order, MultiPick, Assemble, Deduction, Celebration challenges
+- Investigation overlay: scan results, locked deduction, evidence hints, ignore warnings
+
+## 3. Constant friendly feedback
+
+Echo-9 reacts to events, not just challenge text, with a rotating pool of lines per event so he doesn't repeat himself:
+
+- Correct action / clue found / challenge solved → praise ("Correct. I logged that one twice, for pride.")
+- Wrong action → soft negative ("That was not it. Two attempts left. Breathe — you do not breathe. Ignore that.")
+- Last attempt remaining → tension warning
+- Challenge failed → sympathetic, not punishing
+- Badge earned, rank up, streak broken
+- Ignoring an NPC → disapproval
+- Idle for a while in the world → small ambient remark
+- Day start / day end → framing line
+
+## 4. Instructions update
+
+Rewrite the Protocol Manual (`Instructions.tsx`) to match the current game: investigation and clue gathering, learning challenges with limited attempts and consequences, deduction calls, Echo-9's role as support, morality traits, badges, XP/rank, nightly modules, and the ignore option. Keep the same cyberpunk panel styling.
+
+## 5. Themed scrollbars
+
+Add themed scrollbar utilities in `src/styles.css` (thin, square, neon track + glowing thumb, `scrollbar-color` fallback for Firefox) and apply per surface:
+
+- Cyan variant — investigation overlay, info panel, evidence list, most challenges
+- Pink variant — deduction challenge, Echo-9 panels
+- Amber/warm variant — charging screen, day report, ending screen
+
+## Technical notes
+
+- New: `src/game/echo.tsx` (context, provider, `useEcho()`, tone typing) and `src/components/game/EchoDock.tsx` (docked panel used over overlays).
+- `AICompanion.tsx` reads from the Echo bus instead of only `lastChoice`, keeping its position-anchored bubble and tone-based styling.
+- Provider mounts in `Game.tsx` above the world and all overlays; `EchoDock` renders only when an overlay/challenge is active so the drone bubble and dock never both show.
+- Challenge components drop their local `message`/`messageTone` state and call `echo.say(text, tone)`; their JSX banners are removed.
+- Line pools live in one file so wording stays consistent and easy to extend.
+- No gameplay balance, scoring, or save-format changes.
