@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import type { SortBin, SortItem } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -25,14 +26,16 @@ function useShuffled<T>(items: T[]): T[] {
 
 export function SortChallenge({ label, intro, bins, items, successLine, onComplete, onCancel }: Props) {
   const queue = useShuffled(items);
+  const echo = useEcho();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [idx, setIdx] = useState(0);
   const [mistakes, setMistakes] = useState(0);
-  const [message, setMessage] = useState<string | null>(
-    intro ?? "Every choice is final. Read the label before you drop it."
-  );
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    echo.say(intro ?? "Every choice is final. Read the label before you drop it.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const current = idx < queue.length ? queue[idx] : null;
 
@@ -50,25 +53,20 @@ export function SortChallenge({ label, intro, bins, items, successLine, onComple
       const score = queue.length - nextMistakes;
       setDone(true);
       if (nextMistakes === 0) {
-        setMessage(successLine ?? "Everything in its place. Flawless.");
-        setTone("success");
+        echo.say(successLine ?? `Everything in its place. ${pickEchoLine("praise")}`, "good");
       } else {
-        setMessage(
-          `${score}/${queue.length} sorted correctly. ${nextMistakes} item${nextMistakes > 1 ? "s" : ""} ended up in the wrong place — someone will have to redo that.`
+        echo.say(
+          `${score}/${queue.length} sorted correctly. ${nextMistakes} item${nextMistakes > 1 ? "s" : ""} ended up in the wrong place — someone will have to redo that.`,
+          "bad",
+          3000
         );
-        setTone("wrong");
       }
       window.setTimeout(() => onComplete(nextMistakes), 2000);
       return;
     }
 
-    if (correct) {
-      setMessage("Placed.");
-      setTone("neutral");
-    } else {
-      setMessage(current.wrongNote ?? "That didn't feel right... but it's done now.");
-      setTone("wrong");
-    }
+    if (correct) echo.say("Placed. Keep the rhythm.", "good", 1800);
+    else echo.say(current.wrongNote ?? `That didn't feel right... but it's done now. ${pickEchoLine("scold")}`, "bad");
   };
 
   return (
@@ -76,29 +74,11 @@ export function SortChallenge({ label, intro, bins, items, successLine, onComple
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-cyan"
       style={{ boxShadow: "0 0 32px rgba(60,232,255,0.5)" }}
     >
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ SORT · NO UNDO</div>
       <div className="pixel-font text-[12px] text-cyan-100 mb-3">{label.toUpperCase()}</div>
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-3 border-l-2 pl-3 py-1 ${
-              tone === "success" ? "border-green-400 text-green-200"
-              : tone === "wrong" ? "border-pink-400 text-pink-200"
-              : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
 
       {/* Current item */}
       <div className="border-2 border-cyan-400/50 bg-black/60 p-4 mb-4 flex items-center justify-center min-h-[80px]">

@@ -19,12 +19,22 @@ import { InvestigationOverlay } from "./InvestigationOverlay";
 import { RankBar } from "./RankBar";
 import { ModuleStrip } from "./ModuleStrip";
 import { DAYS } from "@/game/scenarios";
+import { EchoProvider } from "@/game/echo";
 
 
 export function Game() {
+  return (
+    <EchoProvider>
+      <GameInner />
+    </EchoProvider>
+  );
+}
+
+function GameInner() {
   const g = useGameState();
   const [infoOpen, setInfoOpen] = useState(false);
   const companionPosRef = useRef<CompanionScreenPos>({ x: -999, y: -999, visible: false });
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,10 +139,12 @@ export function Game() {
             lastChoice={g.lastChoiceLabel}
             morality={g.morality}
             totalChoices={g.choiceLog.length}
-            hidden={!!g.activeScenario || !!g.activeInvestigation || g.paused || infoOpen}
+            hidden={g.paused || infoOpen}
+            pinned={!!g.activeScenario || !!g.activeInvestigation}
             positionRef={companionPosRef}
             onMessageExpired={g.clearLastChoice}
           />
+
 
           <InfoPanel
             open={infoOpen}

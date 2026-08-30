@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { CircuitNode } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -25,14 +26,18 @@ interface Wire {
 export function CircuitChallenge({ label, intro, nodes, onComplete, onCancel }: Props) {
   const left = nodes.filter((n) => n.side === "L");
   const right = nodes.filter((n) => n.side === "R");
+  const echo = useEcho();
 
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [wires, setWires] = useState<Wire[]>([]);
   const [spark, setSpark] = useState(0);
   const [wrongs, setWrongs] = useState(0);
-  const [message, setMessage] = useState<string | null>(intro ?? null);
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    echo.say(intro ?? "Link matching colors. A bad wire burns out for good.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const nodeById = (id: string) => nodes.find((n) => n.id === id)!;
   const leftConnected = (id: string) => wires.some((w) => w.from === id && w.correct);
@@ -53,21 +58,18 @@ export function CircuitChallenge({ label, intro, nodes, onComplete, onCancel }: 
       const nextWires = [...wires, newWire];
       setWires(nextWires);
       setSelectedLeft(null);
-      setMessage("Node linked. Power flows.");
-      setTone("neutral");
-      // check win
       if (nextWires.filter((w) => w.correct).length === left.length) {
-        setMessage("Terminal restored. A hologram flickers into life across the panel.");
-        setTone("success");
+        echo.say("Terminal restored. A hologram flickers into life. " + pickEchoLine("praise"), "good");
         setDone(true);
         window.setTimeout(() => onComplete(wrongs), 1600);
+      } else {
+        echo.say("Node linked. Power flows.", "neutral", 2200);
       }
     } else {
       setSpark((n) => n + 1);
       setWrongs((n) => n + 1);
       setSelectedLeft(null);
-      setMessage("Spark! Wrong pairing — same color links only. The wire burns out.");
-      setTone("wrong");
+      echo.say("Spark! Same-color links only — that wire is gone. " + pickEchoLine("scold"), "bad");
     }
   };
 
@@ -75,8 +77,7 @@ export function CircuitChallenge({ label, intro, nodes, onComplete, onCancel }: 
     if (done) return;
     setWires([]);
     setSelectedLeft(null);
-    setMessage("Panel cleared. Try again.");
-    setTone("neutral");
+    echo.say("Panel cleared. Try again — carefully this time.", "warn", 2400);
   };
 
   return (
@@ -96,26 +97,6 @@ export function CircuitChallenge({ label, intro, nodes, onComplete, onCancel }: 
 
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ REPAIR</div>
       <div className="pixel-font text-[12px] text-cyan-100 mb-3">{label.toUpperCase()}</div>
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-4 border-l-2 pl-3 py-1 ${
-              tone === "success"
-                ? "border-green-400 text-green-200"
-                : tone === "wrong"
-                ? "border-pink-400 text-pink-200"
-                : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
 
       {/* Panel */}
       <div className="relative border-2 border-cyan-400/50 bg-black/70 p-4" style={{ boxShadow: "inset 0 0 24px rgba(60,232,255,0.15)" }}>

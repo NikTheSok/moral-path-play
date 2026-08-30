@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { BatteryOption } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -13,29 +14,32 @@ interface Props {
 }
 
 export function BatteryChallenge({ label, intro, batteries, correctId, successLine, onComplete, onCancel }: Props) {
+  const echo = useEcho();
   const [tried, setTried] = useState<Set<string>>(new Set());
-  const [message, setMessage] = useState<string | null>(intro ?? null);
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
   const [shake, setShake] = useState(0);
   const [wrongs, setWrongs] = useState(0);
+
+  useEffect(() => {
+    echo.say(intro ?? "Match the output rating. Guessing will hurt him.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const insert = (b: BatteryOption) => {
     if (done) return;
     setTried((s) => new Set(s).add(b.id));
     if (b.id === correctId) {
-      setMessage(successLine ?? "The dog boots up.");
-      setTone("success");
+      echo.say(successLine ?? `The dog boots up. ${pickEchoLine("praise")}`, "good");
       setDone(true);
       window.setTimeout(() => onComplete(wrongs), 1500);
     } else {
       const w = wrongs + 1;
       setWrongs(w);
-      setMessage(
+      echo.say(
         (b.wrongComment ?? "The dog stutters, then goes dark again.") +
-          (w >= 2 ? " Check the numbers, not the size." : "")
+          (w >= 2 ? " Check the numbers, not the size." : ` ${pickEchoLine("scold")}`),
+        "bad"
       );
-      setTone("wrong");
       setShake((n) => n + 1);
     }
   };
@@ -69,26 +73,6 @@ export function BatteryChallenge({ label, intro, batteries, correctId, successLi
           🐕
         </motion.div>
       </div>
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-4 border-l-2 pl-3 py-1 ${
-              tone === "success"
-                ? "border-green-400 text-green-200"
-                : tone === "wrong"
-                ? "border-pink-400 text-pink-200"
-                : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
 
       <div className="grid gap-2">
         {batteries.map((b) => {
