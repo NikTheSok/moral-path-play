@@ -139,10 +139,12 @@ function GameInner() {
             lastChoice={g.lastChoiceLabel}
             morality={g.morality}
             totalChoices={g.choiceLog.length}
-            hidden={!!g.activeScenario || !!g.activeInvestigation || g.paused || infoOpen}
+            hidden={g.paused || infoOpen}
+            pinned={!!g.activeScenario || !!g.activeInvestigation}
             positionRef={companionPosRef}
             onMessageExpired={g.clearLastChoice}
           />
+
 
           <InfoPanel
             open={infoOpen}
