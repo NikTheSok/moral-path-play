@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import type { MultiPickItem } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -28,16 +29,18 @@ const MAX_ATTEMPTS = 3;
 
 export function MultiPickChallenge({ label, intro, items, targetIds, successLine, onComplete, onCancel }: Props) {
   const shuffled = useShuffled(items);
+  const echo = useEcho();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [attempts, setAttempts] = useState(0);
-  const [message, setMessage] = useState<string | null>(
-    intro ?? `Choose ${targetIds.length}. You only get ${MAX_ATTEMPTS} tries — think first.`
-  );
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
 
   const targets = useMemo(() => new Set(targetIds), [targetIds]);
   const need = targetIds.length;
+
+  useEffect(() => {
+    echo.say(intro ?? `Choose ${need}. You only get ${MAX_ATTEMPTS} tries — think first.`, "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggle = (item: MultiPickItem) => {
     if (done) return;
@@ -53,8 +56,7 @@ export function MultiPickChallenge({ label, intro, items, targetIds, successLine
     if (done || selected.size !== need) return;
     const hits = [...selected].filter((id) => targets.has(id)).length;
     if (hits === need) {
-      setMessage(successLine ?? "That was the right call.");
-      setTone("success");
+      echo.say(successLine ?? `That was the right call. ${pickEchoLine("praise")}`, "good");
       setDone(true);
       window.setTimeout(() => onComplete(attempts), 1600);
       return;
@@ -62,10 +64,11 @@ export function MultiPickChallenge({ label, intro, items, targetIds, successLine
     const used = attempts + 1;
     setAttempts(used);
     if (used >= MAX_ATTEMPTS) {
-      setMessage(
-        `${hits} of ${need} were right. Time's up — you go with what you have. That will be remembered.`
+      echo.say(
+        `${hits} of ${need} were right. Time's up — you go with what you have. That will be remembered.`,
+        "bad",
+        3000
       );
-      setTone("wrong");
       setDone(true);
       window.setTimeout(() => onComplete(used + (need - hits)), 2200);
       return;
@@ -75,9 +78,8 @@ export function MultiPickChallenge({ label, intro, items, targetIds, successLine
     const hint =
       used >= 2 && hintSource?.comment
         ? ` Something you chose felt off: ${hintSource.comment}`
-        : " Look again at what this person actually needs.";
-    setMessage(`${hits} of ${need} are right — but I won't say which.${hint}`);
-    setTone("wrong");
+        : ` ${pickEchoLine("nudge")}`;
+    echo.say(`${hits} of ${need} are right — but I won't say which.${hint}`, "warn");
     setSelected(new Set());
   };
 
@@ -86,29 +88,11 @@ export function MultiPickChallenge({ label, intro, items, targetIds, successLine
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-cyan"
       style={{ boxShadow: "0 0 32px rgba(60,232,255,0.5)" }}
     >
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ CHOOSE</div>
-      <div className="pixel-font text-[12px] text-cyan-100 mb-3">{label.toUpperCase()}</div>
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-4 border-l-2 pl-3 py-1 ${
-              tone === "success" ? "border-green-400 text-green-200"
-              : tone === "wrong" ? "border-pink-400 text-pink-200"
-              : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
+      <div className="pixel-font text-[12px] text-cyan-100 mb-4">{label.toUpperCase()}</div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {shuffled.map((it) => {
