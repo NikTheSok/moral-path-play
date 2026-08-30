@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import type { HiddenObjectItem } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -26,28 +27,31 @@ function useShuffled<T>(items: T[]): T[] {
 
 export function HiddenObjectChallenge({ label, intro, objects, correctId, successLine, onComplete, onCancel }: Props) {
   const shuffled = useShuffled(objects);
+  const echo = useEcho();
   const [inspected, setInspected] = useState<Set<string>>(new Set());
-  const [message, setMessage] = useState<string | null>(intro ?? null);
-  const [messageTone, setMessageTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
   const [wrongs, setWrongs] = useState(0);
+
+  useEffect(() => {
+    echo.say(intro ?? "Search carefully. Take only what they actually described.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pick = (item: HiddenObjectItem) => {
     if (done || inspected.has(item.id)) return;
     setInspected((s) => new Set(s).add(item.id));
     if (item.id === correctId) {
-      setMessage(successLine ?? "You found it.");
-      setMessageTone("success");
+      echo.say(successLine ?? `You found it. ${pickEchoLine("praise")}`, "good");
       setDone(true);
       window.setTimeout(() => onComplete(wrongs), 1400);
     } else {
       const w = wrongs + 1;
       setWrongs(w);
-      setMessage(
+      echo.say(
         (item.wrongComment ?? "Not the item they described.") +
-          (w >= 2 ? " Slow down — re-read what they asked for." : "")
+          (w >= 2 ? ` ${pickEchoLine("nudge")}` : ""),
+        "bad"
       );
-      setMessageTone("wrong");
     }
   };
 
@@ -66,26 +70,6 @@ export function HiddenObjectChallenge({ label, intro, objects, correctId, succes
 
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ SEARCH</div>
       <div className="pixel-font text-[12px] text-cyan-100 mb-3">{label.toUpperCase()}</div>
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-4 border-l-2 pl-3 py-1 ${
-              messageTone === "success"
-                ? "border-green-400 text-green-200"
-                : messageTone === "wrong"
-                ? "border-pink-400 text-pink-200"
-                : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
 
       {/* Sandbox grid */}
       <div
