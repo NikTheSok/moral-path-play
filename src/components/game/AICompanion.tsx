@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { Morality } from "@/game/types";
+import { useEcho, type EchoTone } from "@/game/echo";
 
 export interface CompanionScreenPos {
   x: number;
@@ -12,7 +13,13 @@ interface Props {
   lastChoice: string | null;
   morality: Morality;
   totalChoices: number;
+  /** Fully hide the drone (pause menu, cutscenes, manual). */
   hidden?: boolean;
+  /**
+   * An overlay covers the world — the drone can't hover over its body any more,
+   * so it pins its speech to the bottom-left corner instead.
+   */
+  pinned?: boolean;
   /** Live screen-space position of the companion drone, updated each frame by GameWorld. */
   positionRef: MutableRefObject<CompanionScreenPos>;
   /** Notifies parent that the current message has expired (so it can clear lastChoice). */
@@ -69,17 +76,32 @@ function pickLine(choice: string, m: Morality, stage: number): string {
   return "Logging interaction. Pattern unclear.";
 }
 
-export function AICompanion({ lastChoice, morality, totalChoices, hidden, positionRef, onMessageExpired }: Props) {
-  const [visible, setVisible] = useState(false);
-  const [text, setText] = useState("");
+const TONE_STYLE: Record<EchoTone, { border: string; text: string; glow: string; tag: string }> = {
+  good: { border: "border-green-400/80", text: "text-green-100", glow: "0 0 22px rgba(106,255,176,0.45)", tag: "text-green-300/90" },
+  bad: { border: "border-red-400/80", text: "text-red-100", glow: "0 0 22px rgba(255,90,90,0.45)", tag: "text-red-300/90" },
+  warn: { border: "border-yellow-400/80", text: "text-yellow-100", glow: "0 0 22px rgba(255,216,74,0.45)", tag: "text-yellow-300/90" },
+  neutral: { border: "border-pink-400/80", text: "text-pink-100", glow: "0 0 22px rgba(255,58,138,0.45)", tag: "text-pink-300/90" },
+};
+
+export function AICompanion({
+  lastChoice,
+  morality,
+  totalChoices,
+  hidden,
+  pinned,
+  positionRef,
+  onMessageExpired,
+}: Props) {
+  const echo = useEcho();
+  const [localText, setLocalText] = useState<string | null>(null);
   const prevChoice = useRef<string | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  // Clear pending bubble + timer when hidden (transitions, pause, scenarios)
+  // Clear pending bubble + timer when hidden (transitions, pause, cutscenes)
   useEffect(() => {
     if (hidden) {
-      setVisible(false);
+      setLocalText(null);
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -87,15 +109,14 @@ export function AICompanion({ lastChoice, morality, totalChoices, hidden, positi
     }
   }, [hidden]);
 
-  // Show new bubble whenever choice changes
+  // React to dialogue choices in the world
   useEffect(() => {
     if (!lastChoice || lastChoice === prevChoice.current || hidden) return;
     prevChoice.current = lastChoice;
-    setText(pickLine(lastChoice, morality, totalChoices));
-    setVisible(true);
+    setLocalText(pickLine(lastChoice, morality, totalChoices));
     if (timerRef.current) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
-      setVisible(false);
+      setLocalText(null);
       timerRef.current = null;
       onMessageExpired?.();
     }, 5500);
@@ -107,14 +128,20 @@ export function AICompanion({ lastChoice, morality, totalChoices, hidden, positi
     };
   }, [lastChoice, morality, totalChoices, hidden, onMessageExpired]);
 
-  // Anchor bubble to companion screen position each frame
+  // Bus messages take priority over the ambient choice line
+  const busMsg = echo.current;
+  const text = busMsg?.text ?? localText;
+  const tone: EchoTone = busMsg?.tone ?? "neutral";
+  const visible = !hidden && !!text;
+
+  // Anchor bubble to companion screen position each frame (world mode only)
   useEffect(() => {
+    if (pinned) return;
     let raf = 0;
     const tick = () => {
       const el = bubbleRef.current;
       if (el) {
         const p = positionRef.current;
-        // Clamp horizontally so the bubble can't leave the viewport
         const w = el.offsetWidth || 280;
         const half = w / 2;
         const vw = window.innerWidth;
@@ -126,15 +153,21 @@ export function AICompanion({ lastChoice, morality, totalChoices, hidden, positi
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [positionRef]);
+  }, [positionRef, pinned]);
 
   if (hidden) return null;
+
+  const st = TONE_STYLE[tone];
 
   return (
     <div
       ref={bubbleRef}
-      className="pointer-events-none absolute top-0 left-0 z-20 w-[280px] max-w-[88vw]"
-      style={{ willChange: "transform" }}
+      className={
+        pinned
+          ? "pointer-events-none fixed bottom-4 left-4 z-[70] w-[300px] max-w-[88vw]"
+          : "pointer-events-none absolute top-0 left-0 z-[70] w-[280px] max-w-[88vw]"
+      }
+      style={pinned ? undefined : { willChange: "transform" }}
     >
       <AnimatePresence>
         {visible && (
@@ -144,11 +177,18 @@ export function AICompanion({ lastChoice, morality, totalChoices, hidden, positi
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className="relative pixel-font text-[10px] leading-[1.7] bg-black/90 border-2 border-pink-400/80 text-pink-100 px-3 py-2.5 text-center"
-            style={{ boxShadow: "0 0 22px rgba(255,58,138,0.45)" }}
+            className={`relative pixel-font text-[10px] leading-[1.7] bg-black/90 border-2 px-3 py-2.5 ${st.border} ${st.text} ${
+              pinned ? "text-left" : "text-center"
+            }`}
+            style={{ boxShadow: st.glow }}
           >
-            <span className="absolute left-1/2 -bottom-2 -translate-x-1/2 w-3 h-3 rotate-45 bg-black/90 border-r-2 border-b-2 border-pink-400/80" />
-            <span className="block text-[9px] tracking-[0.4em] text-pink-300/90 mb-1">▸ ECHO-9</span>
+            {!pinned && (
+              <span className={`absolute left-1/2 -bottom-2 -translate-x-1/2 w-3 h-3 rotate-45 bg-black/90 border-r-2 border-b-2 ${st.border}`} />
+            )}
+            <span className={`flex items-center gap-2 text-[9px] tracking-[0.4em] mb-1 ${st.tag}`}>
+              {pinned && <span className="text-base leading-none">🤖</span>}
+              ▸ ECHO-9
+            </span>
             {text}
           </motion.div>
         )}
