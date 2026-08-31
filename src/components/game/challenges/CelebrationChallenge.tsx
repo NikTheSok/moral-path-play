@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CelebrationMoment } from "@/game/investigation";
+import { useEcho } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -12,17 +13,23 @@ interface Props {
 }
 
 export function CelebrationChallenge({ label, intro, moments, finalLine, onComplete, onCancel }: Props) {
+  const echo = useEcho();
   const [i, setI] = useState(0);
   const [showFinal, setShowFinal] = useState(false);
 
   const advance = () => {
-    if (showFinal) { onComplete(0); return; }
+    if (showFinal) { echo.say("Logged. That one goes in the good file.", "good"); onComplete(0); return; }
     if (i + 1 >= moments.length) {
       setShowFinal(true);
     } else {
       setI(i + 1);
     }
   };
+
+  useEffect(() => {
+    echo.say("Stay for this part. This is what the work was for.", "good", 3200);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
