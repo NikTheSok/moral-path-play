@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import type { Investigation, Interactable, EncounterResult, EncounterQuality } from "@/game/investigation";
 import { gradeEncounter, QUALITY_LABEL, QUALITY_SCORE } from "@/game/investigation";
 import { DeductionChallenge } from "./challenges/DeductionChallenge";
+import { useEcho } from "@/game/echo";
 
 import { SequenceChallenge } from "./SequenceChallenge";
 import { HiddenObjectChallenge } from "./HiddenObjectChallenge";
@@ -38,6 +39,7 @@ const KIND_COLOR: Record<Interactable["kind"], string> = {
 };
 
 export function InvestigationOverlay({ investigation, upgrades = [], onComplete, onAbort }: Props) {
+  const echo = useEcho();
   const [logged, setLogged] = useState<Set<string>>(new Set());
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [inspecting, setInspecting] = useState<Interactable | null>(null);
