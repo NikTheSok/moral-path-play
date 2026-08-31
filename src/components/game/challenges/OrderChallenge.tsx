@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import type { OrderItem } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -27,14 +28,16 @@ const MAX_ATTEMPTS = 3;
 
 export function OrderChallenge({ label, intro, prompt, items, successLine, onComplete, onCancel }: Props) {
   const shuffled = useShuffled(items);
+  const echo = useEcho();
   const [remaining, setRemaining] = useState<OrderItem[]>(shuffled);
   const [ordered, setOrdered] = useState<OrderItem[]>([]);
   const [attempts, setAttempts] = useState(0);
-  const [message, setMessage] = useState<string | null>(
-    intro ?? "Build the whole line-up, then commit. No feedback until you do."
-  );
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    echo.say(intro ?? "Build the whole line-up, then commit. No feedback until you do.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pick = (item: OrderItem) => {
     if (done) return;
@@ -53,8 +56,7 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
     if (done || remaining.length > 0) return;
     const correctSpots = ordered.filter((it, i) => it.rank === i + 1).length;
     if (correctSpots === items.length) {
-      setMessage(successLine ?? "Exactly fair. Everyone got what they were owed.");
-      setTone("success");
+      echo.say(successLine ?? `Exactly fair. Everyone got what they were owed. ${pickEchoLine("praise")}`, "good");
       setDone(true);
       window.setTimeout(() => onComplete(attempts), 1700);
       return;
@@ -62,18 +64,21 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
     const used = attempts + 1;
     setAttempts(used);
     if (used >= MAX_ATTEMPTS) {
-      setMessage(
-        `${correctSpots} of ${items.length} in the right place — and you're out of tries. Some people were treated unfairly.`
+      echo.say(
+        `${correctSpots} of ${items.length} in the right place — and you're out of tries. Some people were treated unfairly.`,
+        "bad",
+        3000
       );
-      setTone("wrong");
       setDone(true);
       window.setTimeout(() => onComplete(used + (items.length - correctSpots)), 2200);
       return;
     }
-    setMessage(
-      `${correctSpots} of ${items.length} are in the right place. ${used >= 2 ? "Think about who needs it most, not who asked loudest." : "Read the details again."}`
+    echo.say(
+      `${correctSpots} of ${items.length} are in the right place. ${
+        used >= 2 ? "Think about who needs it most, not who asked loudest." : pickEchoLine("nudge")
+      }`,
+      "warn"
     );
-    setTone("wrong");
     setOrdered([]);
     setRemaining(shuffled);
   };
@@ -83,30 +88,12 @@ export function OrderChallenge({ label, intro, prompt, items, successLine, onCom
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      className="relative bg-black/95 border-2 border-cyan-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-cyan"
       style={{ boxShadow: "0 0 32px rgba(60,232,255,0.5)" }}
     >
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ ORDER</div>
       <div className="pixel-font text-[12px] text-cyan-100 mb-1">{label.toUpperCase()}</div>
       {prompt && <div className="pixel-font text-[9px] text-cyan-300/70 tracking-widest mb-3">{prompt}</div>}
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-3 border-l-2 pl-3 py-1 ${
-              tone === "success" ? "border-green-400 text-green-200"
-              : tone === "wrong" ? "border-pink-400 text-pink-200"
-              : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
 
       {/* Ordered lineup */}
       <div className="border-2 border-cyan-400/50 bg-black/60 p-3 mb-4 min-h-[70px]">
