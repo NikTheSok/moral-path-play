@@ -102,7 +102,10 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
   });
 
   const inspect = (it: Interactable) => {
-    if (it.requiresClueId && !logged.has(it.requiresClueId)) return;
+    if (it.requiresClueId && !logged.has(it.requiresClueId)) {
+      echo.say("Locked. You're missing something they told you earlier.", "warn");
+      return;
+    }
     setInspecting(it);
     setVisited((v) => new Set(v).add(it.id));
     if (it.yieldsClueId) {
@@ -110,6 +113,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
         if (prev.has(it.yieldsClueId!)) return prev;
         const next = new Set(prev);
         next.add(it.yieldsClueId!);
+        echo.say(`New fact logged: ${cluesById[it.yieldsClueId!]?.label ?? "evidence"}. Good catch.`, "good");
         return next;
       });
     }
@@ -119,6 +123,9 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
     setMistakes((prev) => prev + m);
     setChallengeDone(true);
     setChallengeOpen(false);
+    if (m === 0) echo.say("Clean run on that one. I'm logging it as a good one.", "good");
+    else if (m >= 3) echo.say("That got messy. It still counts — just not in your favour.", "bad");
+    else echo.say("Done, with a few scrapes. Steady up for the conclusion.", "warn");
   };
 
   const finish = () => {
@@ -126,6 +133,14 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
     if (investigation.badge && quality === "perfect") {
       setShowBadge(true);
     }
+    echo.say(
+      quality === "perfect"
+        ? "Perfect record here. That's the version of you I want in my logs."
+        : QUALITY_SCORE[quality] > 0
+        ? "Not flawless, but they're better off than before. That counts."
+        : "We're leaving damage behind. Let's do better on the next one.",
+      quality === "perfect" ? "good" : QUALITY_SCORE[quality] > 0 ? "neutral" : "bad"
+    );
     const emit = () =>
       onComplete({
         scenarioId: investigation.scenarioId,
@@ -142,6 +157,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
   };
 
   const walkAway = () => {
+    echo.say("Walking away. I'll log it. I won't judge you out loud.", "bad");
     onAbort({
       scenarioId: investigation.scenarioId,
       quality: "ignored",
@@ -150,6 +166,7 @@ export function InvestigationOverlay({ investigation, upgrades = [], onComplete,
       wrongCalls: deduction?.wrongCalls ?? 0,
     });
   };
+
 
   const ch = investigation.challenge;
 
