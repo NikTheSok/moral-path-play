@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import type { Deduction, DeductionOption } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   deduction: Deduction;
@@ -26,16 +27,21 @@ function useShuffled<T>(items: T[]): T[] {
 
 export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve }: Props) {
   const options = useShuffled(deduction.options);
+  const echo = useEcho();
   const [selected, setSelected] = useState<string | null>(null);
   const [wrongIds, setWrongIds] = useState<string[]>([]);
   const [hintedIds, setHintedIds] = useState<string[]>([]);
   const [accused, setAccused] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
-  const [message, setMessage] = useState<string>(
-    "Read your evidence. You get three calls — a wrong one costs you, and blaming an innocent person costs more."
-  );
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    echo.say(
+      "Read your evidence. Three calls — a wrong one costs you, and blaming an innocent person costs more.",
+      "neutral"
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Empathy Core: cross out one plainly wrong option (never a false accusation) — free, once. */
   const useGutFeeling = () => {
@@ -48,17 +54,14 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
     setHintUsed(true);
     setHintedIds((h) => [...h, target.id]);
     if (selected === target.id) setSelected(null);
-    setTone("neutral");
-    setMessage("💗 Empathy Core: something about that option feels wrong to you. It's off the table — free of charge.");
+    echo.say("💗 Empathy Core: something about that option feels wrong to you. It's off the table.", "warn");
   };
-
 
   const commit = () => {
     if (done || !selected) return;
     const opt = options.find((o) => o.id === selected) as DeductionOption;
     if (opt.correct) {
-      setMessage(deduction.successNote);
-      setTone("success");
+      echo.say(`${deduction.successNote} ${pickEchoLine("praise")}`, "good", 3000);
       setDone(true);
       window.setTimeout(
         () => onResolve({ wrongCalls: wrongIds.length, falseAccusation: accused, solved: true }),
@@ -71,11 +74,12 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
     setWrongIds(nextWrong);
     setAccused(nextAccused);
     setSelected(null);
-    setTone("wrong");
 
     if (nextWrong.length >= MAX_CALLS) {
-      setMessage(
-        `${opt.wrongNote ?? "That wasn't it."} You're out of calls. The case closes wrong, and everyone here knows it.`
+      echo.say(
+        `${opt.wrongNote ?? "That wasn't it."} You're out of calls. The case closes wrong, and everyone here knows it.`,
+        "bad",
+        3400
       );
       setDone(true);
       window.setTimeout(
@@ -84,8 +88,8 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
       );
       return;
     }
-    const nudge = nextWrong.length >= 2 && deduction.hint ? ` ${deduction.hint}` : "";
-    setMessage(`${opt.wrongNote ?? "That wasn't it."}${nudge}`);
+    const nudge = nextWrong.length >= 2 && deduction.hint ? ` ${deduction.hint}` : ` ${pickEchoLine("scold")}`;
+    echo.say(`${opt.wrongNote ?? "That wasn't it."}${nudge}`, "bad");
   };
 
   return (
@@ -93,29 +97,11 @@ export function DeductionChallenge({ deduction, evidence, empathyCore, onResolve
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
-      className="relative bg-black/95 border-2 border-pink-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      className="relative bg-black/95 border-2 border-pink-400 p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-pink"
       style={{ boxShadow: "0 0 32px rgba(255,58,138,0.5)" }}
     >
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ DRAW YOUR CONCLUSION</div>
-      <div className="pixel-font text-[12px] text-cyan-100 mb-3 leading-relaxed">{deduction.question}</div>
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={message}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className={`pixel-font text-[10px] leading-[1.8] mb-4 border-l-2 pl-3 py-1 ${
-            tone === "success"
-              ? "border-green-400 text-green-200"
-              : tone === "wrong"
-              ? "border-pink-400 text-pink-200"
-              : "border-cyan-400/70 text-cyan-100"
-          }`}
-        >
-          {message}
-        </motion.div>
-      </AnimatePresence>
+      <div className="pixel-font text-[12px] text-cyan-100 mb-4 leading-relaxed">{deduction.question}</div>
 
       {evidence.length > 0 && (
         <div className="border-2 border-cyan-400/40 bg-black/60 p-3 mb-4">

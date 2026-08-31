@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { AssemblePart, AssembleSlot } from "@/game/investigation";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 interface Props {
   label: string;
@@ -16,22 +17,23 @@ interface Props {
 const MAX_ATTEMPTS = 3;
 
 export function AssembleChallenge({ label, intro, parts, slots, backdrop, successLine, onComplete, onCancel }: Props) {
+  const echo = useEcho();
   const [filled, setFilled] = useState<Record<string, string>>({}); // slotId -> partId
   const [selected, setSelected] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
-  const [message, setMessage] = useState<string | null>(
-    intro ?? "Fit every part, then test the build. It won't tell you which piece is wrong."
-  );
-  const [tone, setTone] = useState<"neutral" | "wrong" | "success">("neutral");
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    echo.say(intro ?? "Fit every part, then test the build. It won't tell you which piece is wrong.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const usedParts = new Set(Object.values(filled));
 
   const pickPart = (id: string) => {
     if (done || usedParts.has(id)) return;
     setSelected(id);
-    setMessage("Now choose a slot for it.");
-    setTone("neutral");
+    echo.say("Now choose a slot for it.", "neutral", 2000);
   };
 
   const placeSlot = (slot: AssembleSlot) => {
@@ -50,16 +52,14 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
     if (filled[slot.id]) return;
     setFilled((f) => ({ ...f, [slot.id]: selected }));
     setSelected(null);
-    setTone("neutral");
-    setMessage("Placed. Keep going — nothing is checked yet.");
+    echo.say("Placed. Keep going — nothing is checked yet.", "neutral", 2000);
   };
 
   const test = () => {
     if (done || Object.keys(filled).length !== slots.length) return;
     const right = slots.filter((s) => filled[s.id] === s.expectPartId).length;
     if (right === slots.length) {
-      setMessage(successLine ?? "It works. First try or not, it holds.");
-      setTone("success");
+      echo.say(successLine ?? `It works. It holds. ${pickEchoLine("praise")}`, "good");
       setDone(true);
       window.setTimeout(() => onComplete(attempts), 1600);
       return;
@@ -67,18 +67,18 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
     const used = attempts + 1;
     setAttempts(used);
     if (used >= MAX_ATTEMPTS) {
-      setMessage(`${right} of ${slots.length} parts sit right. It rattles, but it moves. Not your best work.`);
-      setTone("wrong");
+      echo.say(`${right} of ${slots.length} parts sit right. It rattles, but it moves. Not your best work.`, "bad", 3000);
       setDone(true);
       window.setTimeout(() => onComplete(used + (slots.length - right)), 2200);
       return;
     }
-    setMessage(
-      `${right} of ${slots.length} parts are in the right place. ${used >= 2 ? "Think about what each part actually does." : "Something is off — check the shapes and sizes."}`
+    echo.say(
+      `${right} of ${slots.length} parts are in the right place. ${
+        used >= 2 ? "Think about what each part actually does." : "Something is off — check the shapes and sizes."
+      }`,
+      "warn"
     );
-    setTone("wrong");
   };
-
 
   return (
     <motion.div
@@ -90,24 +90,6 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
     >
       <div className="pixel-font text-[9px] tracking-[0.3em] text-pink-400 mb-1">▸ ASSEMBLE</div>
       <div className="pixel-font text-[12px] text-cyan-100 mb-3">{label.toUpperCase()}</div>
-
-      {message && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={message}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`pixel-font text-[10px] leading-[1.7] mb-3 border-l-2 pl-3 py-1 ${
-              tone === "success" ? "border-green-400 text-green-200"
-              : tone === "wrong" ? "border-pink-400 text-pink-200"
-              : "border-cyan-400/70 text-cyan-100"
-            }`}
-          >
-            {message}
-          </motion.div>
-        </AnimatePresence>
-      )}
 
       {/* Backdrop + slots */}
       <div className="relative border-2 border-cyan-400/50 bg-black/60 p-4 mb-4 min-h-[160px] flex items-center justify-center">
@@ -139,7 +121,6 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
                     <span className="text-3xl">{part.glyph}</span>
                     <span className="pixel-font text-[8px] text-cyan-100 mt-1">{part.label}</span>
                   </>
-
                 ) : (
                   <>
                     <span className="text-2xl opacity-40">◻</span>
@@ -198,5 +179,4 @@ export function AssembleChallenge({ label, intro, parts, slots, backdrop, succes
       </div>
     </motion.div>
   );
-
 }

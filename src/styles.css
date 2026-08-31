@@ -117,3 +117,53 @@
   box-shadow: 4px 4px 0 0 rgba(0,0,0,0.7), inset 0 0 0 2px rgba(0,0,0,0.15);
   image-rendering: pixelated;
 }
+
+/* ============ Themed scrollbars ============ */
+@utility scrollbar-cyan {
+  scrollbar-width: thin;
+  scrollbar-color: #3ce8ff rgba(0, 0, 0, 0.6);
+  &::-webkit-scrollbar { width: 10px; height: 10px; }
+  &::-webkit-scrollbar-track { background: rgba(0,0,0,0.7); border-left: 2px solid rgba(60,232,255,0.25); }
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3ce8ff, #0e6c85);
+    border: 2px solid #000;
+    box-shadow: 0 0 10px rgba(60,232,255,0.7);
+  }
+  &::-webkit-scrollbar-thumb:hover { background: #7af2ff; }
+}
+@utility scrollbar-pink {
+  scrollbar-width: thin;
+  scrollbar-color: #ff3a8a rgba(0, 0, 0, 0.6);
+  &::-webkit-scrollbar { width: 10px; height: 10px; }
+  &::-webkit-scrollbar-track { background: rgba(0,0,0,0.7); border-left: 2px solid rgba(255,58,138,0.25); }
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ff3a8a, #7a0f3d);
+    border: 2px solid #000;
+    box-shadow: 0 0 10px rgba(255,58,138,0.7);
+  }
+  &::-webkit-scrollbar-thumb:hover { background: #ff7ab3; }
+}
+@utility scrollbar-amber {
+  scrollbar-width: thin;
+  scrollbar-color: #ffd84a rgba(0, 0, 0, 0.6);
+  &::-webkit-scrollbar { width: 10px; height: 10px; }
+  &::-webkit-scrollbar-track { background: rgba(0,0,0,0.7); border-left: 2px solid rgba(255,216,74,0.25); }
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #ffd84a, #7a5c05);
+    border: 2px solid #000;
+    box-shadow: 0 0 10px rgba(255,216,74,0.7);
+  }
+  &::-webkit-scrollbar-thumb:hover { background: #ffe98a; }
+}
+@utility scrollbar-green {
+  scrollbar-width: thin;
+  scrollbar-color: #6affb0 rgba(0, 0, 0, 0.6);
+  &::-webkit-scrollbar { width: 10px; height: 10px; }
+  &::-webkit-scrollbar-track { background: rgba(0,0,0,0.7); border-left: 2px solid rgba(106,255,176,0.25); }
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #6affb0, #0d6b42);
+    border: 2px solid #000;
+    box-shadow: 0 0 10px rgba(106,255,176,0.7);
+  }
+  &::-webkit-scrollbar-thumb:hover { background: #a6ffd2; }
+}

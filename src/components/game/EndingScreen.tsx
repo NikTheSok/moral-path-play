@@ -149,7 +149,7 @@ export function EndingScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1 }}
-      className="absolute inset-0 z-30 overflow-y-auto bg-black"
+      className="absolute inset-0 z-30 overflow-y-auto scrollbar-pink bg-black"
     >
       <div className="pointer-events-none absolute inset-0 opacity-20" style={{
         backgroundImage: "linear-gradient(rgba(60,232,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(60,232,255,0.2) 1px, transparent 1px)",
@@ -232,7 +232,7 @@ export function EndingScreen({
           <div>
             <h3 className="pixel-font text-[10px] tracking-widest text-pink-400 mb-3">▸ CHOICE LOG</h3>
             <div
-              className="relative bg-black/85 border-2 border-cyan-400 p-4 max-h-72 overflow-y-auto space-y-3"
+              className="relative bg-black/85 border-2 border-cyan-400 p-4 max-h-72 overflow-y-auto scrollbar-pink space-y-3"
               style={{ boxShadow: "0 0 18px rgba(60,232,255,0.3)" }}
             >
               {log.map((l, i) => (

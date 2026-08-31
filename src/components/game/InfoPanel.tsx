@@ -55,7 +55,7 @@ export function InfoPanel({ open, onClose, badges = [], upgrades = [], encounter
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25 }}
-        className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-black/95 border-2 border-cyan-400 p-5"
+        className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto scrollbar-amber bg-black/95 border-2 border-cyan-400 p-5"
         style={{ boxShadow: "0 0 40px rgba(60,232,255,0.5), inset 0 0 20px rgba(60,232,255,0.08)" }}
       >
         <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-pink-400" />

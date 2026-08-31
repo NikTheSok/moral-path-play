@@ -91,7 +91,7 @@ export function ChargingScreen({
 
       {/* === LEFT: log + actions === */}
       <div className="relative z-10 flex-1 flex flex-col max-w-2xl min-h-0">
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 md:px-14 py-8 flex flex-col items-start justify-start">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-green px-6 md:px-14 py-8 flex flex-col items-start justify-start">
         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
           <div className="pixel-font text-[10px] tracking-[0.5em] text-cyan-300 mb-3" style={{ textShadow: "0 0 10px #3ce8ff" }}>
             ▸ CHARGING BAY 7 · LOG {String(day).padStart(2, "0")}
@@ -150,7 +150,7 @@ export function ChargingScreen({
         {journalEntries.length > 0 && (
           <motion.div
             initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
-            className="mt-3 w-full max-w-md border-2 border-cyan-400/40 bg-black/60 p-3 max-h-48 overflow-y-auto"
+            className="mt-3 w-full max-w-md border-2 border-cyan-400/40 bg-black/60 p-3 max-h-48 overflow-y-auto scrollbar-green"
           >
             <div className="pixel-font text-[9px] tracking-widest text-cyan-300/80 mb-2">▸ ROBOT JOURNAL · DAY {day}</div>
             <ul className="space-y-2">
