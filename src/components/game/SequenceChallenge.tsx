@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useEcho, pickEchoLine } from "@/game/echo";
 
 /**
  * Simon-style sequence challenge.
@@ -29,6 +30,7 @@ export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCan
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [size]
   );
+  const echo = useEcho();
   const [phase, setPhase] = useState<"watch" | "input" | "fail" | "done">("watch");
   const [flashIdx, setFlashIdx] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
@@ -36,6 +38,11 @@ export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCan
   const timerRef = useRef<number | null>(null);
 
   // Play the pattern
+  useEffect(() => {
+    echo.say("Watch the pattern, then repeat it with keys 1 to 4. Take your time.", "neutral");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (phase !== "watch") return;
     let i = 0;
@@ -69,12 +76,14 @@ export function SequenceChallenge({ size, label, slowPlayback, onComplete, onCan
       const nextProg = progress + 1;
       if (nextProg >= pattern.length) {
         setPhase("done");
+        echo.say(`Sequence matched${attempt === 0 ? " first try" : ""}. ${pickEchoLine("praise")}`, "good");
         window.setTimeout(() => onComplete(attempt), 700);
       } else {
         setProgress(nextProg);
       }
     } else {
       setPhase("fail");
+      echo.say(`Wrong pad. ${attempt >= 1 ? "Count the flashes out loud this time." : pickEchoLine("scold")}`, "bad");
       window.setTimeout(() => {
         setProgress(0);
         setAttempt((a) => a + 1);
