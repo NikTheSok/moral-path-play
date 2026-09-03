@@ -6,6 +6,7 @@ import type { EncounterLog } from "@/game/useGameState";
 import { rankFor } from "@/game/progression";
 import { MoralityPanel } from "./MoralityPanel";
 import { RobotSprite } from "./RobotSprite";
+import { ReviewPanel } from "./ReviewPanel";
 
 interface Props {
   morality: Morality;
