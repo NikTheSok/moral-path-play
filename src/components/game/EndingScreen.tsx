@@ -220,6 +220,16 @@ export function EndingScreen({
         </motion.p>
 
         <motion.div
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 2.1 }}
+          className="mt-10 w-full max-w-3xl flex justify-center"
+        >
+          <ReviewPanel />
+        </motion.div>
+
+
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 1.9 }}
