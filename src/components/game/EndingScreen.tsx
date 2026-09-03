@@ -6,6 +6,7 @@ import type { EncounterLog } from "@/game/useGameState";
 import { rankFor } from "@/game/progression";
 import { MoralityPanel } from "./MoralityPanel";
 import { RobotSprite } from "./RobotSprite";
+import { ReviewPanel } from "./ReviewPanel";
 
 interface Props {
   morality: Morality;
@@ -218,6 +219,16 @@ export function EndingScreen({
         >
           {ending.description}
         </motion.p>
+
+        <motion.div
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 2.1 }}
+          className="mt-10 w-full max-w-3xl flex justify-center"
+        >
+          <ReviewPanel />
+        </motion.div>
+
 
         <motion.div
           initial={{ y: 20, opacity: 0 }}
