@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { LangToggle } from "./LangToggle";
 
 interface Props {
   open: boolean;
