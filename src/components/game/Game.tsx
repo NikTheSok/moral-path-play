@@ -22,7 +22,7 @@ import { DAYS } from "@/game/scenarios";
 import { EchoProvider } from "@/game/echo";
 import { I18nProvider } from "@/game/i18n";
 import { Translator } from "./Translator";
-import { LangToggle } from "./LangToggle";
+
 
 
 export function Game() {
