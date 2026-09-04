@@ -111,6 +111,12 @@
   -webkit-font-smoothing: none;
   font-smooth: never;
 }
+/* Macedonian: Press Start 2P has no Cyrillic — swap in a pixel face that does. */
+html[lang="mk"] .pixel-font {
+  font-family: "Pixelify Sans", "Press Start 2P", ui-monospace, monospace;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
 @utility pixel-panel {
   border-width: 3px;
   border-style: solid;
