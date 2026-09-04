@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { LangToggle } from "./LangToggle";
 
 interface Props {
   onStart: () => void;
@@ -95,6 +96,11 @@ export function MainMenu({ onStart, onContinue, onInstructions, onCredits, hasSa
           >
             ▶ CREDITS
           </button>
+
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <span className="pixel-font text-[9px] tracking-widest text-cyan-400/60" translate="no">LANGUAGE</span>
+            <LangToggle />
+          </div>
 
         </motion.div>
 

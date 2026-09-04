@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { LangToggle } from "./LangToggle";
 
 interface Props {
   open: boolean;
@@ -42,6 +43,10 @@ export function PauseMenu({ open, onResume, onMenu }: Props) {
               >
                 ◄ QUIT TO MENU
               </button>
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <span className="pixel-font text-[9px] tracking-widest text-cyan-400/60" translate="no">LANGUAGE</span>
+              <LangToggle />
             </div>
             <p className="pixel-font text-[9px] text-cyan-400/60 mt-6 tracking-widest">[ESC TO RESUME]</p>
           </motion.div>

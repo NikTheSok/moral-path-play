@@ -20,13 +20,19 @@ import { RankBar } from "./RankBar";
 import { ModuleStrip } from "./ModuleStrip";
 import { DAYS } from "@/game/scenarios";
 import { EchoProvider } from "@/game/echo";
+import { I18nProvider } from "@/game/i18n";
+import { Translator } from "./Translator";
+
 
 
 export function Game() {
   return (
-    <EchoProvider>
-      <GameInner />
-    </EchoProvider>
+    <I18nProvider>
+      <Translator />
+      <EchoProvider>
+        <GameInner />
+      </EchoProvider>
+    </I18nProvider>
   );
 }
 
