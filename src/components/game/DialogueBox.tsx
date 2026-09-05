@@ -26,8 +26,9 @@ function useTypewriter(text: string, speed = 18) {
 }
 
 export function DialogueBox({ scenario, stage, pendingReply, onChoose, onContinue }: Props) {
+  const t = useT();
   const showing = scenario && (stage || pendingReply);
-  const text = pendingReply ? pendingReply.text : stage?.npc ?? "";
+  const text = t(pendingReply ? pendingReply.text : stage?.npc ?? "");
   const typed = useTypewriter(text);
   const isComplete = typed.length === text.length;
 
