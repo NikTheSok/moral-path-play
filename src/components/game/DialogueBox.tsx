@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { DialogueStage, Scenario, StageChoice } from "@/game/types";
+import { useT } from "@/game/i18n";
 
 interface Props {
   scenario: Scenario | null;
@@ -26,8 +27,9 @@ function useTypewriter(text: string, speed = 18) {
 }
 
 export function DialogueBox({ scenario, stage, pendingReply, onChoose, onContinue }: Props) {
+  const t = useT();
   const showing = scenario && (stage || pendingReply);
-  const text = pendingReply ? pendingReply.text : stage?.npc ?? "";
+  const text = t(pendingReply ? pendingReply.text : stage?.npc ?? "");
   const typed = useTypewriter(text);
   const isComplete = typed.length === text.length;
 
