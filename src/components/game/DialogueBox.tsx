@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { DialogueStage, Scenario, StageChoice } from "@/game/types";
+import { useT } from "@/game/i18n";
 
 interface Props {
   scenario: Scenario | null;
